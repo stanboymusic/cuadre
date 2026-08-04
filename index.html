@@ -281,7 +281,7 @@ function money(n, cur){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 
-const pb = new PocketBase('https://pocketbase-production-bc73.up.railway.app');
+const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
 
 async function loadDB(){
   const results = await Promise.all(STORE_KEYS.map(async k=>{

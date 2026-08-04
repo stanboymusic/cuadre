@@ -1,7 +1,7 @@
 const PocketBase = require('pocketbase/cjs');
 
 (async () => {
-  const pb = new PocketBase('http://127.0.0.1:8090');
+  const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
   
   await pb.admins.authWithPassword('adrcproducciones@gmail.com', '12345678!');
   
