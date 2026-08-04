@@ -283,15 +283,48 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;
 
 const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
 
+
+// Campos que se guardan como texto JSON en PocketBase
+const JSON_TEXT_FIELDS = {
+  config: ['paymentMethods', 'expenseTypes', 'vendors'],
+  sales: ['items', 'payments'],
+  purchases: ['items'],
+  cashClosings: ['opening', 'real']
+};
+
+function parseRecord(key, record) {
+  if (!record) return record;
+  const fields = JSON_TEXT_FIELDS[key] || [];
+  const out = { ...record };
+  for (const f of fields) {
+    if (typeof out[f] === 'string') {
+      try { out[f] = JSON.parse(out[f]); } catch(e) { out[f] = []; }
+    }
+    if (out[f] == null) out[f] = Array.isArray(out[f]) ? [] : out[f];
+  }
+  return out;
+}
+
+function serializeRecord(key, record) {
+  const fields = JSON_TEXT_FIELDS[key] || [];
+  const out = { ...record };
+  for (const f of fields) {
+    if (out[f] !== undefined && typeof out[f] !== 'string') {
+      out[f] = JSON.stringify(out[f]);
+    }
+  }
+  return out;
+}
+
 async function loadDB(){
   const results = await Promise.all(STORE_KEYS.map(async k=>{
     try{ 
       if (k === 'config') {
         const records = await pb.collection(k).getFullList();
-        return [k, records.length > 0 ? records[0] : null];
+        return [k, records.length > 0 ? parseRecord(k, records[0]) : null];
       }
       const records = await pb.collection(k).getFullList(); 
-      return [k, records.length > 0 ? records : []]; 
+      return [k, records.length > 0 ? records.map(r => parseRecord(k, r)) : []]; 
     }
     catch(e){ console.error(e); return [k, null]; }
   }));
@@ -303,10 +336,11 @@ async function save(key){
   try{
     if (key === 'config') {
       const existing = await pb.collection(key).getFullList();
+      const data = serializeRecord(key, DB.config);
       if (existing.length > 0) {
-        await pb.collection(key).update(existing[0].id, DB.config);
+        await pb.collection(key).update(existing[0].id, data);
       } else {
-        await pb.collection(key).create(DB.config);
+        await pb.collection(key).create(data);
       }
       return;
     }
@@ -315,18 +349,19 @@ async function save(key){
     const pbMap = new Map(pbRecords.map(r => [r.id, r]));
     
     for (const item of DB[key]) {
+      const data = serializeRecord(key, item);
       if (pbMap.has(item.id)) {
-        await pb.collection(key).update(item.id, item);
+        await pb.collection(key).update(item.id, data);
         pbMap.delete(item.id);
       } else {
-        const data = { ...item };
-        delete data.id; 
-        const created = await pb.collection(key).create(data);
+        const d = { ...data };
+        delete d.id; 
+        const created = await pb.collection(key).create(d);
         item.id = created.id; 
       }
     }
     
-    for (const [id, _] of pbMap) {
+    for (const [id] of pbMap) {
       await pb.collection(key).delete(id);
     }
     
