@@ -254,6 +254,7 @@ tbody tr:hover{ background:#fbfaf6; }
   body{ background:#fff; }
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/dist/pocketbase.umd.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -279,19 +280,57 @@ function money(n, cur){
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+
+const pb = new PocketBase('http://127.0.0.1:8090');
+
 async function loadDB(){
   const results = await Promise.all(STORE_KEYS.map(async k=>{
-    try{ const r = await window.storage.get(k, false); return [k, r ? JSON.parse(r.value) : null]; }
-    catch(e){ return [k, null]; }
+    try{ 
+      if (k === 'config') {
+        const records = await pb.collection(k).getFullList();
+        return [k, records.length > 0 ? records[0] : null];
+      }
+      const records = await pb.collection(k).getFullList(); 
+      return [k, records.length > 0 ? records : []]; 
+    }
+    catch(e){ console.error(e); return [k, null]; }
   }));
   results.forEach(([k,v])=>{ if(v!=null) DB[k]=v; });
   if(!DB.config) DB.config = defaultConfig();
 }
+
 async function save(key){
   try{
-    const r = await window.storage.set(key, JSON.stringify(DB[key]), false);
-    if(!r) toast('No se pudo guardar '+key, true);
-  }catch(e){ toast('Error guardando datos', true); }
+    if (key === 'config') {
+      const existing = await pb.collection(key).getFullList();
+      if (existing.length > 0) {
+        await pb.collection(key).update(existing[0].id, DB.config);
+      } else {
+        await pb.collection(key).create(DB.config);
+      }
+      return;
+    }
+
+    const pbRecords = await pb.collection(key).getFullList();
+    const pbMap = new Map(pbRecords.map(r => [r.id, r]));
+    
+    for (const item of DB[key]) {
+      if (pbMap.has(item.id)) {
+        await pb.collection(key).update(item.id, item);
+        pbMap.delete(item.id);
+      } else {
+        const data = { ...item };
+        delete data.id; 
+        const created = await pb.collection(key).create(data);
+        item.id = created.id; 
+      }
+    }
+    
+    for (const [id, _] of pbMap) {
+      await pb.collection(key).delete(id);
+    }
+    
+  }catch(e){ console.error(e); toast('Error guardando datos', true); }
 }
 function defaultConfig(){
   return {
