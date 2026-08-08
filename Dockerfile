@@ -15,5 +15,5 @@ COPY pb_migrations/ /pb/pb_migrations/
 
 EXPOSE 8080
 
-# Iniciar PocketBase en el puerto 8080
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080"]
+# Iniciar PocketBase: permite CORS desde el frontend en Vercel y aplica migraciones automáticamente
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--origins=https://mantentev2.vercel.app,https://fragrant-sandbar-3808.fly.dev"]
