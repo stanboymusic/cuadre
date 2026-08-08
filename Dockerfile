@@ -10,10 +10,7 @@ RUN apk add --no-cache \
 ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip /tmp/pb.zip
 RUN unzip /tmp/pb.zip -d /pb/
 
-# Copiar migraciones de esquema (se aplican automáticamente al iniciar PocketBase)
-COPY pb_migrations/ /pb/pb_migrations/
-
 EXPOSE 8080
 
-# Iniciar PocketBase: permite CORS desde el frontend en Vercel y aplica migraciones automáticamente
+# Iniciar PocketBase: permite CORS desde el frontend en Vercel
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--origins=https://mantentev2.vercel.app,https://fragrant-sandbar-3808.fly.dev"]
