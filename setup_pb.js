@@ -44,7 +44,9 @@ async function req(method, path, body, token) {
       { name: 'address', type: 'text' }, { name: 'phone', type: 'text' },
       { name: 'exchangeRate', type: 'number' }, { name: 'iva', type: 'number' },
       { name: 'paymentMethods', type: 'text' }, { name: 'expenseTypes', type: 'text' },
-      { name: 'vendors', type: 'text' }
+      { name: 'vendors', type: 'text' }, { name: 'cop', type: 'number' },
+      { name: 'useFictitiousRate', type: 'bool' }, { name: 'cashDiscountPercent', type: 'number' },
+      { name: 'divisaCashMethods', type: 'json' }
     ]},
     { name: 'products', schema: [
       { name: 'code', type: 'text' }, { name: 'name', type: 'text' },
@@ -130,7 +132,8 @@ async function req(method, path, body, token) {
         exchangeRate: 40, iva: 16,
         paymentMethods: ['Efectivo Bs.','Pago Móvil','Punto de Venta','Biopago','Zelle ($)','Binance ($)','PayPal ($)','Efectivo ($)','Crédito'],
         expenseTypes: ['Sueldos','Alquiler','Agua','Electricidad','Gas','Publicidad','Delivery','Otros egresos'],
-        vendors: ['Vendedor 1']
+        vendors: ['Vendedor 1'], cop: 0, useFictitiousRate: false, cashDiscountPercent: 20,
+        divisaCashMethods: ['Zelle ($)', 'Binance ($)', 'PayPal ($)', 'Efectivo ($)']
       }, token);
       console.log('✓ Created initial config record');
     }
