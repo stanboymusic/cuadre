@@ -1,0 +1,222 @@
+diff --git a/index.html b/index.html
+index 9be5254..32209f6 100644
+--- a/index.html
++++ b/index.html
+@@ -330,6 +330,55 @@
+       padding: 20px;
+     }
+ 
++    /* ---------- login ---------- */
++    .login-wrap {
++      min-height: 100vh;
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      background: var(--paper);
++      padding: 20px;
++    }
++
++    .login-card {
++      width: 100%;
++      max-width: 340px;
++      text-align: center;
++    }
++
++    .login-logo {
++      width: 56px;
++      height: 56px;
++      object-fit: contain;
++      margin: 0 auto 10px;
++      display: block;
++    }
++
++    .login-title {
++      font-family: 'Fraunces', serif;
++      font-weight: 700;
++      font-size: 20px;
++      letter-spacing: .04em;
++      color: var(--ink);
++    }
++
++    .login-sub {
++      color: var(--ink-soft);
++      font-size: 12.5px;
++      margin: 2px 0 20px;
++    }
++
++    .login-card .field {
++      text-align: left;
++    }
++
++    .login-error {
++      color: var(--clay);
++      font-size: 12.5px;
++      margin: 4px 0 12px;
++      text-align: left;
++    }
++
+     .grid {
+       display: grid;
+       gap: 16px;
+@@ -900,6 +949,7 @@
+   <div id="toast" class="toast"></div>
+ 
+     <script src="./js/store.js"></script>
++  <script src="./js/auth.js"></script>
+   <script src="./js/app.js"></script>
+   <script src="./js/dashboard.js"></script>
+   <script src="./js/ventas.js"></script>
+@@ -916,7 +966,11 @@
+   <script src="./js/config.js"></script>
+   <script src="./js/patrimonio.js"></script>
+   <script>
+-    (async function init() { await loadDB(); render(); })();
++    (async function init() {
++      if (!isLoggedIn()) { renderLogin(); return; }
++      await loadDB();
++      render();
++    })();
+   </script>
+ </body>
+ 
+diff --git a/js/app.js b/js/app.js
+index 78999d3..b66a3a4 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -71,7 +71,11 @@ function render() {
+           <span class="ic">${i.ic}</span><span>${i.label}</span>
+         </div>`).join('')}
+     </div>`).join('')}
+-  <div class="sidebar-foot">${esc(DB.config.businessName)}<br>${todayFmt()}</div>
++  <div class="sidebar-foot">
++    ${esc(DB.config.businessName)}<br>${todayFmt()}
++    ${pb.authStore.record ? `<div style="margin-top:8px;opacity:.8;">${esc(pb.authStore.record.email || pb.authStore.record.username || '')}</div>` : ''}
++    <div class="nav-item no-print" style="margin-top:6px;" onclick="logout()"><span class="ic">⏻</span><span>Cerrar sesión</span></div>
++  </div>
+ </div>
+ <div class="main">
+   <div class="topbar no-print">
+diff --git a/js/auth.js b/js/auth.js
+new file mode 100644
+index 0000000..227202a
+--- /dev/null
++++ b/js/auth.js
+@@ -0,0 +1,68 @@
++
++
++/* Autenticación simple con la colección "users" de PocketBase.
++   No hay registro público: los usuarios se crean a mano desde el
++   panel admin de PocketBase (Collections > users > + New record). */
++
++function isLoggedIn() {
++  return pb.authStore.isValid;
++}
++
++function renderLogin() {
++  const app = document.getElementById('app');
++  app.innerHTML = `
++<div class="login-wrap">
++  <form class="card card-pad login-card" onsubmit="return handleLogin(event)">
++    <img src="${LOGO_ICON}" alt="Mantente" class="login-logo">
++    <div class="login-title">MANTENTE</div>
++    <div class="login-sub">Decisiones claras, negocios rentables</div>
++    <div class="field">
++      <label>Usuario o correo</label>
++      <input id="loginUser" type="text" autocomplete="username" required>
++    </div>
++    <div class="field">
++      <label>Contraseña</label>
++      <input id="loginPass" type="password" autocomplete="current-password" required>
++    </div>
++    <div id="loginError" class="login-error" style="display:none;"></div>
++    <button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center;padding:11px;" type="submit">Entrar</button>
++  </form>
++</div>`;
++  document.getElementById('loginUser').focus();
++}
++
++async function handleLogin(e) {
++  e.preventDefault();
++  const identity = document.getElementById('loginUser').value.trim();
++  const password = document.getElementById('loginPass').value;
++  const btn = document.getElementById('loginBtn');
++  const errEl = document.getElementById('loginError');
++  errEl.style.display = 'none';
++  btn.disabled = true;
++  try {
++    await pb.collection('users').authWithPassword(identity, password);
++    await loadDB();
++    render();
++  } catch (err) {
++    errEl.textContent = 'Usuario o contraseña incorrectos.';
++    errEl.style.display = 'block';
++    btn.disabled = false;
++  }
++  return false;
++}
++
++function logout() {
++  pb.authStore.clear();
++  renderLogin();
++}
++
++// Si el token expira o se invalida en cualquier momento, vuelve al login
++pb.authStore.onChange(() => {
++  if (!pb.authStore.isValid && document.getElementById('app')) renderLogin();
++});
++
++// Expose to global scope for inline HTML handlers
++window.isLoggedIn = isLoggedIn;
++window.renderLogin = renderLogin;
++window.handleLogin = handleLogin;
++window.logout = logout;
+diff --git a/pb_migrations/1785806700_required_auth_all_collections.js b/pb_migrations/1785806700_required_auth_all_collections.js
+new file mode 100644
+index 0000000..3528310
+--- /dev/null
++++ b/pb_migrations/1785806700_required_auth_all_collections.js
+@@ -0,0 +1,44 @@
++/// <reference path="../pb_data/types.d.ts" />
++migrate((app) => {
++  const ids = [
++    "pbc_3818476082", // config
++    "pbc_4092854851", // products
++    "pbc_1394421508", // cashClosings
++    "pbc_2442875294", // clients
++    "pbc_1691921218", // expenses
++    "pbc_1145533974", // inventoryAdjustments
++    "pbc_3461338982", // purchases
++    "pbc_2156756805", // receivablePayments
++    "pbc_2697449135", // sales
++    "pbc_863811952",  // services
++    "pbc_3355664324", // suppliers
++  ];
++  for (const id of ids) {
++    const collection = app.findCollectionByNameOrId(id);
++    unmarshal({
++      "createRule": "@request.auth.id != \"\"",
++      "deleteRule": "@request.auth.id != \"\"",
++      "listRule": "@request.auth.id != \"\"",
++      "updateRule": "@request.auth.id != \"\"",
++      "viewRule": "@request.auth.id != \"\""
++    }, collection);
++    app.save(collection);
++  }
++}, (app) => {
++  const ids = [
++    "pbc_3818476082", "pbc_4092854851", "pbc_1394421508", "pbc_2442875294",
++    "pbc_1691921218", "pbc_1145533974", "pbc_3461338982", "pbc_2156756805",
++    "pbc_2697449135", "pbc_863811952", "pbc_3355664324",
++  ];
++  for (const id of ids) {
++    const collection = app.findCollectionByNameOrId(id);
++    unmarshal({
++      "createRule": "",
++      "deleteRule": "",
++      "listRule": "",
++      "updateRule": "",
++      "viewRule": ""
++    }, collection);
++    app.save(collection);
++  }
++})

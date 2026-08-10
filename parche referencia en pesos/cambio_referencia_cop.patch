@@ -1,0 +1,12 @@
+diff --git a/js/ventas.js b/js/ventas.js
+index 0562453..fbb8bbb 100644
+--- a/js/ventas.js
++++ b/js/ventas.js
+@@ -97,6 +97,7 @@ function renderVentas(el) {
+ 
+       <div class="line" style="display:flex;justify-content:space-between;font-weight:600;"><span>Pagado</span><span class="amt">${money(paidUsd, 'USD')}</span></div>
+       <div class="line" style="display:flex;justify-content:space-between;font-weight:600;color:${balanceUsd > 0 ? 'var(--clay)' : 'var(--teal)'}"><span>${balanceUsd > 0 ? 'Falta / a crédito' : 'Cambio'}</span><span class="amt">${money(Math.abs(balanceUsd), 'USD')}</span></div>
++      ${DB.config.exchangeRateCop ? `<div class="line" style="display:flex;justify-content:space-between;color:var(--ink-soft);font-size:12.5px;margin-top:-2px;"><span>Equivalente COP</span><span class="amt">${money(Math.abs(balanceUsd) * DB.config.exchangeRateCop, 'COP')}</span></div>` : ''}
+       ${balanceUsd > 0 && !CART.clientId ? `<div class="hint" style="color:var(--clay)">Selecciona un cliente para dejar saldo a crédito.</div>` : ''}
+ 
+       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px;padding:11px;" ${!CART.items.length ? 'disabled' : ''} onclick="guardedRun(this,finalizeSale)">Registrar venta</button>
