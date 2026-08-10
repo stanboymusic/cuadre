@@ -8,10 +8,7 @@ function renderVentas(el) {
   const ivaPct = DB.config.iva || 0;
   const ivaUsd = subtotalUsd * ivaPct / 100;
   const totalBeforeDiscountUsd = subtotalUsd + ivaUsd;
-  const applyCashDiscount = DB.config.useFictitiousRate && CART.payments.length > 0 && CART.payments.every(p => isDivisaCashMethod(p.method));
-  const discountPct = applyCashDiscount ? (Number(DB.config.cashDiscountPercent) || 0) : 0;
-  const discountUsd = totalBeforeDiscountUsd * discountPct / 100;
-  const totalUsd = totalBeforeDiscountUsd - discountUsd;
+  const totalUsd = totalBeforeDiscountUsd;
   const totalBs = totalUsd * DB.config.exchangeRate;
   const paidUsd = CART.payments.reduce((a, p) => a + Number(p.amountUsd || 0), 0);
   const balanceUsd = totalUsd - paidUsd;
@@ -24,10 +21,10 @@ function renderVentas(el) {
         <select id="itemPicker" style="flex:1">
           <option value="">— Selecciona un producto o servicio —</option>
           <optgroup label="Productos">
-            ${DB.products.map(p => `<option value="p:${p.id}" ${((p.stock || 0) <= 0) ? 'disabled' : ''}>${esc(p.name)} · ${money(sellPrice(tierPrice(p, CART.priceTier)), 'USD')} · stock ${p.stock || 0}</option>`).join('')}
+            ${DB.products.map(p => `<option value="p:${p.id}" ${((p.stock || 0) <= 0) ? 'disabled' : ''}>${esc(p.name)} · ${money(tierPrice(p, CART.priceTier), 'USD')} · stock ${p.stock || 0}</option>`).join('')}
           </optgroup>
           <optgroup label="Servicios">
-            ${DB.services.map(s => `<option value="s:${s.id}">${esc(s.name)} · ${money(sellPrice(s.price), 'USD')}</option>`).join('')}
+            ${DB.services.map(s => `<option value="s:${s.id}">${esc(s.name)} · ${money(s.price, 'USD')}</option>`).join('')}
           </optgroup>
         </select>
         <select id="tierSel" onchange="CART.priceTier=this.value; render()" style="max-width:180px" title="Nivel de precio a aplicar a los productos que agregues">
@@ -75,8 +72,7 @@ function renderVentas(el) {
     <div class="card card-pad">
       <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Subtotal</span><span class="amt">${money(subtotalUsd, 'USD')}</span></div>
       <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--ink-soft)"><span>IVA (${ivaPct}%)</span><span class="amt">${money(ivaUsd, 'USD')}</span></div>
-      ${discountUsd > 0 ? `<div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--teal);font-weight:600;"><span>Descuento pago en divisas (-${discountPct}%)</span><span class="amt">-${money(discountUsd, 'USD')}</span></div>` : ''}
-      ${DB.config.useFictitiousRate && !applyCashDiscount && CART.payments.length > 0 ? `<div class="hint" style="color:var(--clay);margin-bottom:6px;">Este pago no aplica el descuento por divisas (incluye un método en Bs. u otro no marcado como divisa).</div>` : ''}
+
       <hr style="border:none;border-top:1px solid var(--line-soft);margin:10px 0">
       <div class="line" style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;"><span>Total</span><span class="amt">${money(totalUsd, 'USD')}</span></div>
       <div class="line" style="display:flex;justify-content:space-between;color:var(--ink-soft);font-size:12.5px;margin-top:2px;"><span>Equivalente</span><span class="amt">${money(totalBs, 'Bs')}</span></div>
@@ -123,12 +119,12 @@ function addToCart(kind, id, tier) {
     const p = getProduct(id); if (!p) return;
     const existing = CART.items.find(it => it.kind === 'p' && it.refId === id && it.tier === tier);
     if (existing) existing.qty += 1;
-    else CART.items.push({ kind: 'p', refId: id, name: p.name, tier, priceUsd: sellPrice(tierPrice(p, tier)), cost: p.cost, qty: 1 });
+    else CART.items.push({ kind: 'p', refId: id, name: p.name, tier, priceUsd: tierPrice(p, tier), cost: p.cost, qty: 1 });
   } else {
     const s = getService(id); if (!s) return;
     const existing = CART.items.find(it => it.kind === 's' && it.refId === id);
     if (existing) existing.qty += 1;
-    else CART.items.push({ kind: 's', refId: id, name: s.name, priceUsd: sellPrice(s.price), cost: 0, qty: 1 });
+    else CART.items.push({ kind: 's', refId: id, name: s.name, priceUsd: s.price, cost: 0, qty: 1 });
   }
 }
 function cartSetItemTier(idx, tier) {
@@ -136,7 +132,7 @@ function cartSetItemTier(idx, tier) {
   if (!it || it.kind !== 'p') return;
   const p = getProduct(it.refId); if (!p) return;
   it.tier = tier;
-  it.priceUsd = sellPrice(tierPrice(p, tier));
+  it.priceUsd = tierPrice(p, tier);
   render();
 }
 function cartSetQty(idx, val) { CART.items[idx].qty = Math.max(1, Number(val) || 1); render(); }
@@ -156,10 +152,7 @@ async function finalizeSale() {
   const ivaPct = DB.config.iva || 0;
   const ivaUsd = subtotalUsd * ivaPct / 100;
   const totalBeforeDiscountUsd = subtotalUsd + ivaUsd;
-  const applyCashDiscount = DB.config.useFictitiousRate && CART.payments.length > 0 && CART.payments.every(p => isDivisaCashMethod(p.method));
-  const discountPct = applyCashDiscount ? (Number(DB.config.cashDiscountPercent) || 0) : 0;
-  const discountUsd = totalBeforeDiscountUsd * discountPct / 100;
-  const totalUsd = totalBeforeDiscountUsd - discountUsd;
+  const totalUsd = totalBeforeDiscountUsd;
   const totalBs = totalUsd * DB.config.exchangeRate;
   const paidUsd = CART.payments.reduce((a, p) => a + Number(p.amountUsd || 0), 0);
   let creditAmount = 0, changeUsd = 0;
@@ -185,7 +178,7 @@ async function finalizeSale() {
     subtotalUsd, ivaUsd, totalUsd, totalBs, payments: CART.payments.map(p => ({ ...p })),
     changeUsd, creditAmount, exchangeRate: DB.config.exchangeRate, exchangeRateCop: DB.config.exchangeRateCop || 0,
     showBs: !!CART.showBs, showCop: !!(CART.showCop && DB.config.exchangeRateCop),
-    totalBeforeDiscountUsd, discountUsd, discountPct, cashDiscountApplied: applyCashDiscount
+    totalBeforeDiscountUsd
   };
   DB.sales.push(sale);
   CART.items.forEach(it => { if (it.kind === 'p') { const p = getProduct(it.refId); if (p) p.stock = (p.stock || 0) - it.qty; } });
@@ -193,7 +186,7 @@ async function finalizeSale() {
   CART.lastTicket = sale;
   toast('Venta registrada ✓');
   showTicket(sale);
-  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'price', showBs: false, showCop: false };
+  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false };
   render();
 }
 function showTicket(sale) {
@@ -216,7 +209,7 @@ function showTicket(sale) {
     <hr>
     <div class="line"><span>Subtotal</span><span>${money(sale.subtotalUsd, 'USD')}</span></div>
     <div class="line"><span>IVA</span><span>${money(sale.ivaUsd, 'USD')}</span></div>
-    ${sale.cashDiscountApplied ? `<div class="line"><span>Descuento pago en divisas (-${sale.discountPct}%)</span><span>-${money(sale.discountUsd, 'USD')}</span></div>` : ''}
+
     <div class="line tot"><span>TOTAL</span><span>${money(sale.totalUsd, 'USD')}</span></div>
     ${sale.showBs ? `<div class="line"><span>Equiv. Bs.</span><span>${money(sale.totalBs, 'Bs')}</span></div>` : ''}
     ${sale.showCop ? `<div class="line"><span>Equiv. COP</span><span>${money(sale.totalUsd * sale.exchangeRateCop, 'COP')}</span></div>` : ''}

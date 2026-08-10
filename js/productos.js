@@ -3,7 +3,7 @@
 let PROD_FILTER = '';
 function renderProductos(el) {
   const list = DB.products.filter(p => smartMatch(PROD_FILTER, p.name, p.code));
-  const fictActive = DB.config.useFictitiousRate;
+
   el.innerHTML = `
 <div class="searchbar">
   <input id="prodSearch" placeholder="Buscar por nombre o código…" value="${esc(PROD_FILTER)}" oninput="filterAndRerender(v=>PROD_FILTER=v, this, renderProductos)">
@@ -11,14 +11,14 @@ function renderProductos(el) {
 </div>
 ${list.length ? `
 <div class="table-wrap">
-  <table><thead><tr><th>Código</th><th>Producto</th><th>Costo (PB)</th>${PRICE_TIERS.map(t => `<th>${t.label}</th>`).join('')}${fictActive ? `<th>Mostrador AMI (+${(DB.config.cashDiscountPercent || 0)}%)</th>` : ''}<th>Existencia</th><th>Ubicación</th><th></th></tr></thead>
+  <table><thead><tr><th>Código</th><th>Producto</th><th>Costo (PB)</th>${PRICE_TIERS.map(t => `<th>${t.label}</th>`).join('')}<th>Existencia</th><th>Ubicación</th><th></th></tr></thead>
   <tbody>${list.map(p => `
     <tr>
       <td class="mono">${esc(p.code || '—')}</td>
       <td>${esc(p.name)}</td>
       <td class="amt">${money(p.cost, 'USD')}</td>
       ${PRICE_TIERS.map(t => `<td class="amt">${money(tierPrice(p, t.key), 'USD')}</td>`).join('')}
-      ${fictActive ? `<td class="amt" style="font-weight:700;color:var(--gold);">${money(sellPrice(tierPrice(p, 'ami')), 'USD')}</td>` : ''}
+
       <td class="amt">${(p.stock || 0) <= (p.minStock || 0) ? `<span class="tag tag-clay">${p.stock || 0}</span>` : (p.stock || 0)}</td>
       <td>${esc(p.location || '—')}</td>
       <td style="white-space:nowrap;">

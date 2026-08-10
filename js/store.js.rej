@@ -1,0 +1,39 @@
+diff a/js/store.js b/js/store.js	(rejected hunks)
+@@ -169,6 +169,21 @@ function toast(msg, isError) {
+ 
+ 
+ 
++/* Niveles de precio oficiales, calculados siempre a partir del costo (PB):
++   precio = PB / (1 - margen/100). "Precio de Nota" es margen 0, o sea PB tal cual. */
++const PRICE_TIERS = [
++  { key: 'nota', label: 'Precio de Nota', margin: 0 },
++  { key: 'express', label: 'Precio Express', margin: 10 },
++  { key: 'ami', label: 'Precio AMI', margin: 20 },
++  { key: 'divisa', label: 'Precio Divisa', margin: 25 },
++  { key: 'bcv', label: 'Precio BCV', margin: 30 },
++];
++function tierPrice(product, tierKey) {
++  const tier = PRICE_TIERS.find(t => t.key === tierKey) || PRICE_TIERS[0];
++  const pb = Number(product && product.cost) || 0;
++  return tier.margin >= 100 ? pb : pb / (1 - tier.margin / 100);
++}
++
+ function calcPriceFromCost(cost, method, value) {
+   cost = Number(cost) || 0; value = Number(value) || 0;
+   if (method === 'markup') return cost * (1 + value / 100);           // % utilidad respecto al costo
+@@ -206,6 +221,7 @@ window.defaultConfig = defaultConfig;
+ window.esc = esc;
+ window.expensesOnDate = expensesOnDate;
+ window.filterAndRerender = filterAndRerender;
++window.tierPrice = tierPrice;
+ window.fmtDate = fmtDate;
+ window.getClient = getClient;
+ window.getProduct = getProduct;
+@@ -216,6 +232,7 @@ window.loadDB = loadDB;
+ window.money = money;
+ window.norm = norm;
+ window.parseRecord = parseRecord;
++window.PRICE_TIERS = PRICE_TIERS;
+ window.pb = pb;
+ window.salesOnDate = salesOnDate;
+ window.save = save;

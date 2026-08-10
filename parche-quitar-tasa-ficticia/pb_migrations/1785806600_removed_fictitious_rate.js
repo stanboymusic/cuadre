@@ -2,18 +2,13 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_3818476082")
 
-  collection.fields.add(new Field({
-    "hidden": false,
-    "id": "number_cop",
-    "max": null,
-    "min": null,
-    "name": "cop",
-    "onlyInt": false,
-    "presentable": false,
-    "required": false,
-    "system": false,
-    "type": "number"
-  }))
+  collection.fields.removeById("bool_usefictitiousrate")
+  collection.fields.removeById("number_cashdiscountpercent")
+  collection.fields.removeById("json_divisacashmethods")
+
+  return app.save(collection)
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("pbc_3818476082")
 
   collection.fields.add(new Field({
     "hidden": false,
@@ -48,15 +43,6 @@ migrate((app) => {
     "system": false,
     "type": "json"
   }))
-
-  return app.save(collection)
-}, (app) => {
-  const collection = app.findCollectionByNameOrId("pbc_3818476082")
-
-  collection.fields.removeById("number_cop")
-  collection.fields.removeById("bool_usefictitiousrate")
-  collection.fields.removeById("number_cashdiscountpercent")
-  collection.fields.removeById("json_divisacashmethods")
 
   return app.save(collection)
 })

@@ -24,8 +24,6 @@ function renderConfig(el) {
   </div>
 </div>
 
-
-
 <div class="grid grid-2" style="margin-top:16px;">
   <div class="card card-pad">
     <h3 style="margin-top:0;font-size:15px;">Tipos de egreso</h3>
@@ -38,7 +36,6 @@ function renderConfig(el) {
 </div>
   `;
 }
-
 function listEditor(key, arr) {
   return `
 <div class="chip-list">${arr.map((v, i) => `<span class="chip">${esc(v)}<button onclick="removeConfigItem('${key}',${i})">✕</button></span>`).join('')}</div>
@@ -81,4 +78,3 @@ window.listEditor = listEditor;
 window.removeConfigItem = removeConfigItem;
 window.renderConfig = renderConfig;
 window.saveBizConfig = saveBizConfig;
-

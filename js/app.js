@@ -76,7 +76,7 @@ function render() {
 <div class="main">
   <div class="topbar no-print">
     <h1><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menú">☰</button>${LABELS[VIEW] || ''}</h1>
-    <div class="rate-pill">◆ Tasa del día: <span class="mono">${DB.config.exchangeRate}</span> Bs./$${DB.config.exchangeRateCop ? ` · <span class="mono">${DB.config.exchangeRateCop}</span> COP/$` : ''}${DB.config.useFictitiousRate ? ` · <span class="mono" title="Tasa ficticia activa">🛡 x${fictitiousMultiplier().toFixed(2)}</span>` : ''}</div>
+    <div class="rate-pill">◆ Tasa del día: <span class="mono">${DB.config.exchangeRate}</span> Bs./$${DB.config.exchangeRateCop ? ` · <span class="mono">${DB.config.exchangeRateCop}</span> COP/$` : ''}</div>
   </div>
   <div class="content" id="content"></div>
 </div>

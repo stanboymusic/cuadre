@@ -1,0 +1,94 @@
+diff a/js/ventas.js b/js/ventas.js	(rejected hunks)
+@@ -1,6 +1,6 @@
+ 
+ 
+-let CART = { items: [], clientId: '', vendor: (DB.config && DB.config.vendors && DB.config.vendors[0]) || '', payments: [], lastTicket: null, priceTier: 'price', showBs: false, showCop: false };
++let CART = { items: [], clientId: '', vendor: (DB.config && DB.config.vendors && DB.config.vendors[0]) || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false };
+ 
+ function renderVentas(el) {
+   if (!CART.vendor) CART.vendor = DB.config.vendors[0] || '';
+@@ -20,26 +20,27 @@ function renderVentas(el) {
+         <select id="itemPicker" style="flex:1">
+           <option value="">— Selecciona un producto o servicio —</option>
+           <optgroup label="Productos">
+-            ${DB.products.map(p => `<option value="p:${p.id}" ${((p.stock || 0) <= 0) ? 'disabled' : ''}>${esc(p.name)} · ${money(p[CART.priceTier] || p.price, 'USD')} · stock ${p.stock || 0}</option>`).join('')}
++            ${DB.products.map(p => `<option value="p:${p.id}" ${((p.stock || 0) <= 0) ? 'disabled' : ''}>${esc(p.name)} · ${money(tierPrice(p, CART.priceTier), 'USD')} · stock ${p.stock || 0}</option>`).join('')}
+           </optgroup>
+           <optgroup label="Servicios">
+             ${DB.services.map(s => `<option value="s:${s.id}">${esc(s.name)} · ${money(s.price, 'USD')}</option>`).join('')}
+           </optgroup>
+         </select>
+         <select id="tierSel" onchange="CART.priceTier=this.value; render()" style="max-width:180px" title="Nivel de precio a aplicar a los productos que agregues">
+-          <option value="price" ${CART.priceTier === 'price' ? 'selected' : ''}>Precio regular</option>
+-          <option value="price2" ${CART.priceTier === 'price2' ? 'selected' : ''}>Precio 2</option>
+-          <option value="price3" ${CART.priceTier === 'price3' ? 'selected' : ''}>Precio 3</option>
++          ${PRICE_TIERS.map(t => `<option value="${t.key}" ${CART.priceTier === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
+         </select>
+         <button class="btn btn-gold" onclick="cartAddFromPicker()">+ Agregar</button>
+       </div>
+       ${CART.items.length ? `
+         <div class="table-wrap" style="max-height:340px">
+-          <table><thead><tr><th>Ítem</th><th>Cant.</th><th>Precio</th><th>Total</th><th></th></tr></thead>
++          <table><thead><tr><th>Ítem</th><th>Cant.</th><th>Nivel</th><th>Precio</th><th>Total</th><th></th></tr></thead>
+           <tbody>${CART.items.map((it, idx) => `
+             <tr>
+               <td>${esc(it.name)} ${it.kind === 's' ? '<span class="tag tag-gold">Servicio</span>' : ''}</td>
+               <td><input type="number" min="1" value="${it.qty}" style="width:60px;padding:4px 6px;border:1px solid var(--line);border-radius:6px" onchange="cartSetQty(${idx}, this.value)"></td>
++              <td>${it.kind === 'p' ? `<select style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-size:12px;" onchange="cartSetItemTier(${idx}, this.value)">
++                ${PRICE_TIERS.map(t => `<option value="${t.key}" ${(it.tier || 'ami') === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
++              </select>` : '—'}</td>
+               <td class="amt">${money(it.priceUsd, 'USD')}</td>
+               <td class="amt">${money(it.priceUsd * it.qty, 'USD')}</td>
+               <td><button class="btn btn-ghost btn-sm" onclick="cartRemove(${idx})">✕</button></td>
+@@ -107,22 +108,34 @@ function cartAddFromPicker() {
+   const sel = document.getElementById('itemPicker').value;
+   if (!sel) return;
+   const [kind, id] = sel.split(':');
++  addToCart(kind, id, CART.priceTier);
++  render();
++}
++function addToCart(kind, id, tier) {
++  tier = tier || CART.priceTier;
+   if (kind === 'p') {
+     const p = getProduct(id); if (!p) return;
+-    const existing = CART.items.find(it => it.kind === 'p' && it.refId === id);
++    const existing = CART.items.find(it => it.kind === 'p' && it.refId === id && it.tier === tier);
+     if (existing) existing.qty += 1;
+-    else CART.items.push({ kind: 'p', refId: id, name: p.name, priceUsd: (p[CART.priceTier] || p.price), cost: p.cost, qty: 1 });
++    else CART.items.push({ kind: 'p', refId: id, name: p.name, tier, priceUsd: tierPrice(p, tier), cost: p.cost, qty: 1 });
+   } else {
+     const s = getService(id); if (!s) return;
+     const existing = CART.items.find(it => it.kind === 's' && it.refId === id);
+     if (existing) existing.qty += 1;
+     else CART.items.push({ kind: 's', refId: id, name: s.name, priceUsd: s.price, cost: 0, qty: 1 });
+   }
++}
++function cartSetItemTier(idx, tier) {
++  const it = CART.items[idx];
++  if (!it || it.kind !== 'p') return;
++  const p = getProduct(it.refId); if (!p) return;
++  it.tier = tier;
++  it.priceUsd = tierPrice(p, tier);
+   render();
+ }
+ function cartSetQty(idx, val) { CART.items[idx].qty = Math.max(1, Number(val) || 1); render(); }
+ function cartRemove(idx) { CART.items.splice(idx, 1); render(); }
+-function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'price', showBs: false, showCop: false }; render(); }
++function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false }; render(); }
+ function cartAddPaymentRow() {
+   const method = document.getElementById('payMethodSel').value;
+   CART.payments.push({ method, amountUsd: 0 });
+@@ -212,11 +225,13 @@ function printTicket() { window.print(); }
+ 
+ // Expose to global scope for inline HTML handlers
+ window.CART = CART;
++window.addToCart = addToCart;
+ window.cartAddFromPicker = cartAddFromPicker;
+ window.cartAddPaymentRow = cartAddPaymentRow;
+ window.cartClear = cartClear;
+ window.cartRemove = cartRemove;
+ window.cartRemovePayment = cartRemovePayment;
++window.cartSetItemTier = cartSetItemTier;
+ window.cartSetPayment = cartSetPayment;
+ window.cartSetQty = cartSetQty;
+ window.finalizeSale = finalizeSale;

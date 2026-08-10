@@ -26,7 +26,7 @@ const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
 
 // Campos que se guardan como texto JSON en PocketBase
 const JSON_TEXT_FIELDS = {
-  config: ['paymentMethods', 'expenseTypes', 'vendors', 'divisaCashMethods'],
+  config: ['paymentMethods', 'expenseTypes', 'vendors'],
   sales: ['items', 'payments'],
   purchases: ['items'],
   cashClosings: ['opening', 'real']
@@ -73,12 +73,6 @@ async function loadDB() {
   }));
   results.forEach(([k, v]) => { if (v != null) DB[k] = v; });
   if (!DB.config) DB.config = defaultConfig();
-  else {
-    const d = defaultConfig();
-    for (const key of ['useFictitiousRate', 'cashDiscountPercent', 'divisaCashMethods']) {
-      if (DB.config[key] == null || (Array.isArray(d[key]) && !Array.isArray(DB.config[key]))) DB.config[key] = d[key];
-    }
-  }
 }
 
 async function save(key) {
@@ -162,9 +156,7 @@ function defaultConfig() {
     exchangeRate: 40, exchangeRateCop: 0, iva: 16, initialInvestment: 0,
     paymentMethods: ['Efectivo Bs.', 'Pago Móvil', 'Punto de Venta', 'Biopago', 'Zelle ($)', 'Binance ($)', 'PayPal ($)', 'Efectivo ($)', 'Crédito'],
     expenseTypes: ['Sueldos', 'Alquiler', 'Agua', 'Electricidad', 'Gas', 'Publicidad', 'Delivery', 'Otros egresos'],
-    vendors: ['Vendedor 1'],
-    useFictitiousRate: false, cashDiscountPercent: 20,
-    divisaCashMethods: ['Zelle ($)', 'Binance ($)', 'PayPal ($)', 'Efectivo ($)']
+    vendors: ['Vendedor 1']
   };
 }
 function toast(msg, isError) {
@@ -176,27 +168,6 @@ function toast(msg, isError) {
 }
 
 
-
-/* Tasa ficticia: si está activa, todo lo que se vende sube por el
-   multiplicador necesario para poder ofrecer cashDiscountPercent de
-   "descuento" a quien pague en divisas y aun así cuadrar con el precio
-   base real. Ej: 20% de descuento => multiplicador 1.25 (100/80). */
-function fictitiousMultiplier() {
-  const c = DB.config;
-  if (!c || !c.useFictitiousRate) return 1;
-  const d = Number(c.cashDiscountPercent) || 0;
-  if (d <= 0 || d >= 100) return 1;
-  return 1 / (1 - d / 100);
-}
-function fictitiousRateCop() {
-  const c = DB.config;
-  return (c && c.exchangeRateCop) ? c.exchangeRateCop * fictitiousMultiplier() : 0;
-}
-function sellPrice(basePrice) { return (Number(basePrice) || 0) * fictitiousMultiplier(); }
-function isDivisaCashMethod(method) {
-  const c = DB.config;
-  return !!(c && c.useFictitiousRate && Array.isArray(c.divisaCashMethods) && c.divisaCashMethods.includes(method));
-}
 
 /* Niveles de precio oficiales, calculados siempre a partir del costo (PB):
    precio = PB / (1 - margen/100). "Precio de Nota" es margen 0, o sea PB tal cual. */
@@ -250,11 +221,7 @@ window.defaultConfig = defaultConfig;
 window.esc = esc;
 window.expensesOnDate = expensesOnDate;
 window.filterAndRerender = filterAndRerender;
-window.fictitiousMultiplier = fictitiousMultiplier;
-window.fictitiousRateCop = fictitiousRateCop;
-window.sellPrice = sellPrice;
 window.tierPrice = tierPrice;
-window.isDivisaCashMethod = isDivisaCashMethod;
 window.fmtDate = fmtDate;
 window.getClient = getClient;
 window.getProduct = getProduct;
