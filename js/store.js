@@ -167,8 +167,19 @@ async function save(key) {
 /* Backfill de un solo click: reescribe TODOS tus registros existentes
    con el companyId del usuario actual. Úsalo una sola vez, justo después
    de crear tu empresa y asignarte su companyId, para "adoptar" los datos
-   que ya tenías antes de activar multiempresa. */
+   que ya tenías antes de activar multiempresa.
+   Antes de nada, refresca los datos del usuario desde PocketBase — si le
+   asignaste el companyId desde el Admin UI DESPUÉS de haber iniciado
+   sesión en la app, la sesión abierta todavía tenía la copia vieja (sin
+   companyId) guardada en memoria, y sin este refresh el backfill escribiría
+   companyId vacío en todo sin dar ningún error. */
 async function syncAllWithCompany() {
+  const fresh = await pb.collection('users').authRefresh();
+  const companyId = fresh?.record?.companyId || '';
+  if (!companyId) {
+    toast('Tu usuario todavía no tiene companyId asignado en PocketBase', true);
+    return;
+  }
   for (const k of STORE_KEYS) {
     await save(k);
   }
