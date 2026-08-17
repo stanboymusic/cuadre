@@ -1,0 +1,166 @@
+diff --git a/index.html b/index.html
+index 9be5254..a58c40e 100644
+--- a/index.html
++++ b/index.html
+@@ -330,6 +330,89 @@
+       padding: 20px;
+     }
+ 
++    /* ---------- login ---------- */
++    .login-wrap {
++      width: 100%;
++      min-height: 100vh;
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      padding: 20px;
++      position: relative;
++      overflow: hidden;
++      background: linear-gradient(160deg, var(--gold-tint) 0%, #f3e2ae 45%, var(--gold) 100%);
++    }
++
++    .login-wrap::before,
++    .login-wrap::after {
++      content: '';
++      position: absolute;
++      border-radius: 50%;
++      filter: blur(90px);
++      z-index: 0;
++    }
++
++    .login-wrap::before {
++      width: 480px;
++      height: 480px;
++      top: -140px;
++      left: -120px;
++      background: var(--gold-deep);
++      opacity: .45;
++    }
++
++    .login-wrap::after {
++      width: 520px;
++      height: 520px;
++      bottom: -160px;
++      right: -140px;
++      background: var(--gold);
++      opacity: .55;
++    }
++
++    .login-card {
++      position: relative;
++      z-index: 1;
++      width: 100%;
++      max-width: 340px;
++      text-align: center;
++      backdrop-filter: blur(6px);
++      background: rgba(255, 255, 255, .92);
++    }
++
++    .login-logo {
++      width: 56px;
++      height: 56px;
++      object-fit: contain;
++      margin: 0 auto 10px;
++      display: block;
++    }
++
++    .login-title {
++      font-family: 'Fraunces', serif;
++      font-weight: 700;
++      font-size: 20px;
++      letter-spacing: .04em;
++      color: var(--ink);
++    }
++
++    .login-sub {
++      color: var(--ink-soft);
++      font-size: 12.5px;
++      margin: 2px 0 20px;
++    }
++
++    .login-card .field {
++      text-align: left;
++    }
++
++    .login-error {
++      color: var(--clay);
++      font-size: 12.5px;
++      margin: 4px 0 12px;
++      text-align: left;
++    }
++
+     .grid {
+       display: grid;
+       gap: 16px;
+@@ -899,24 +982,34 @@
+   <div id="app"></div>
+   <div id="toast" class="toast"></div>
+ 
+-    <script src="./js/store.js"></script>
+-  <script src="./js/app.js"></script>
+-  <script src="./js/dashboard.js"></script>
+-  <script src="./js/ventas.js"></script>
+-  <script src="./js/productos.js"></script>
+-  <script src="./js/servicios.js"></script>
+-  <script src="./js/proveedores.js"></script>
+-  <script src="./js/compras.js"></script>
+-  <script src="./js/ajustes.js"></script>
+-  <script src="./js/clientes.js"></script>
+-  <script src="./js/egresos.js"></script>
+-  <script src="./js/cierre.js"></script>
+-  <script src="./js/reportes.js"></script>
+-  <script src="./js/historial.js"></script>
+-  <script src="./js/config.js"></script>
+-  <script src="./js/patrimonio.js"></script>
++    <script src="./js/store.js?v=20260817b"></script>
++  <script src="./js/auth.js?v=20260817b"></script>
++  <script src="./js/app.js?v=20260817b"></script>
++  <script src="./js/dashboard.js?v=20260817b"></script>
++  <script src="./js/ventas.js?v=20260817b"></script>
++  <script src="./js/productos.js?v=20260817b"></script>
++  <script src="./js/servicios.js?v=20260817b"></script>
++  <script src="./js/proveedores.js?v=20260817b"></script>
++  <script src="./js/compras.js?v=20260817b"></script>
++  <script src="./js/ajustes.js?v=20260817b"></script>
++  <script src="./js/clientes.js?v=20260817b"></script>
++  <script src="./js/egresos.js?v=20260817b"></script>
++  <script src="./js/cierre.js?v=20260817b"></script>
++  <script src="./js/reportes.js?v=20260817b"></script>
++  <script src="./js/historial.js?v=20260817b"></script>
++  <script src="./js/config.js?v=20260817b"></script>
++  <script src="./js/patrimonio.js?v=20260817b"></script>
+   <script>
+-    (async function init() { await loadDB(); render(); })();
++    (async function init() {
++      const favicon = document.createElement('link');
++      favicon.rel = 'icon'; favicon.href = LOGO_ICON;
++      document.head.appendChild(favicon);
++
++      if (!isLoggedIn()) { renderLogin(); return; }
++      startIdleWatch();
++      await loadDB();
++      render();
++    })();
+   </script>
+ </body>
+ 
+diff --git a/js/patrimonio.js b/js/patrimonio.js
+index a6788a6..469dc58 100644
+--- a/js/patrimonio.js
++++ b/js/patrimonio.js
+@@ -59,15 +59,6 @@ async function saveInvestment() {
+   renderPatrimonio(document.getElementById('content'));
+ }
+ 
+-(async function init() {
+-  const favicon = document.createElement('link');
+-  favicon.rel = 'icon'; favicon.href = LOGO_ICON;
+-  document.head.appendChild(favicon);
+-  await loadDB();
+-  render();
+-})();
+-  
+-
+ // Expose to global scope for inline HTML handlers
+ window.renderPatrimonio = renderPatrimonio;
+ window.saveInvestment = saveInvestment;
