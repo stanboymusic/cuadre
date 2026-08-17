@@ -42,15 +42,10 @@ class SessionAuthStore {
     } catch (e) { /* storage no disponible: sesión solo en memoria */ }
   }
   get isValid() {
-    if (!this.token || !this.record || !this.record.id) return false;
+    if (!this.token) return false;
     try {
-      const parts = this.token.split('.');
-      if (parts.length !== 3) return false;
-      const payload = JSON.parse(atob(parts[1]));
-      // Fail-closed: sin "exp" válido en el token, la sesión se considera
-      // inválida (antes se daba por válida "para siempre", lo cual era
-      // el hueco de seguridad).
-      return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+      const payload = JSON.parse(atob(this.token.split('.')[1]));
+      return payload.exp ? (payload.exp * 1000 > Date.now()) : true;
     } catch (e) { return false; }
   }
   save(token, record) {
@@ -71,16 +66,6 @@ class SessionAuthStore {
   }
   _trigger() { this._listeners.forEach(l => { try { l(this.token, this.record); } catch (e) { } }); }
 }
-
-/* Purga de cualquier rastro de la sesión "vieja" (antes de este parche
-   de seguridad la app usaba localStorage por defecto para guardar el
-   token). Si el navegador tenía eso guardado de antes, o si por caché
-   quedó una copia vieja de la app corriendo, esto lo borra apenas carga
-   cualquier página nueva — así nunca puede colarse como sesión válida. */
-try {
-  localStorage.removeItem('pocketbase_auth');
-  localStorage.removeItem('pb_auth');
-} catch (e) { }
 
 const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev', new SessionAuthStore());
 

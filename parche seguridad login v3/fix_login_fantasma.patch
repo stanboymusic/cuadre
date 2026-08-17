@@ -1,0 +1,422 @@
+diff --git a/index.html b/index.html
+index 9be5254..85de402 100644
+--- a/index.html
++++ b/index.html
+@@ -330,6 +330,89 @@
+       padding: 20px;
+     }
+ 
++    /* ---------- login ---------- */
++    .login-wrap {
++      width: 100%;
++      min-height: 100vh;
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      padding: 20px;
++      position: relative;
++      overflow: hidden;
++      background: linear-gradient(160deg, var(--gold-tint) 0%, #f3e2ae 45%, var(--gold) 100%);
++    }
++
++    .login-wrap::before,
++    .login-wrap::after {
++      content: '';
++      position: absolute;
++      border-radius: 50%;
++      filter: blur(90px);
++      z-index: 0;
++    }
++
++    .login-wrap::before {
++      width: 480px;
++      height: 480px;
++      top: -140px;
++      left: -120px;
++      background: var(--gold-deep);
++      opacity: .45;
++    }
++
++    .login-wrap::after {
++      width: 520px;
++      height: 520px;
++      bottom: -160px;
++      right: -140px;
++      background: var(--gold);
++      opacity: .55;
++    }
++
++    .login-card {
++      position: relative;
++      z-index: 1;
++      width: 100%;
++      max-width: 340px;
++      text-align: center;
++      backdrop-filter: blur(6px);
++      background: rgba(255, 255, 255, .92);
++    }
++
++    .login-logo {
++      width: 56px;
++      height: 56px;
++      object-fit: contain;
++      margin: 0 auto 10px;
++      display: block;
++    }
++
++    .login-title {
++      font-family: 'Fraunces', serif;
++      font-weight: 700;
++      font-size: 20px;
++      letter-spacing: .04em;
++      color: var(--ink);
++    }
++
++    .login-sub {
++      color: var(--ink-soft);
++      font-size: 12.5px;
++      margin: 2px 0 20px;
++    }
++
++    .login-card .field {
++      text-align: left;
++    }
++
++    .login-error {
++      color: var(--clay);
++      font-size: 12.5px;
++      margin: 4px 0 12px;
++      text-align: left;
++    }
++
+     .grid {
+       display: grid;
+       gap: 16px;
+@@ -899,24 +982,30 @@
+   <div id="app"></div>
+   <div id="toast" class="toast"></div>
+ 
+-    <script src="./js/store.js"></script>
+-  <script src="./js/app.js"></script>
+-  <script src="./js/dashboard.js"></script>
+-  <script src="./js/ventas.js"></script>
+-  <script src="./js/productos.js"></script>
+-  <script src="./js/servicios.js"></script>
+-  <script src="./js/proveedores.js"></script>
+-  <script src="./js/compras.js"></script>
+-  <script src="./js/ajustes.js"></script>
+-  <script src="./js/clientes.js"></script>
+-  <script src="./js/egresos.js"></script>
+-  <script src="./js/cierre.js"></script>
+-  <script src="./js/reportes.js"></script>
+-  <script src="./js/historial.js"></script>
+-  <script src="./js/config.js"></script>
+-  <script src="./js/patrimonio.js"></script>
++    <script src="./js/store.js?v=20260817a"></script>
++  <script src="./js/auth.js?v=20260817a"></script>
++  <script src="./js/app.js?v=20260817a"></script>
++  <script src="./js/dashboard.js?v=20260817a"></script>
++  <script src="./js/ventas.js?v=20260817a"></script>
++  <script src="./js/productos.js?v=20260817a"></script>
++  <script src="./js/servicios.js?v=20260817a"></script>
++  <script src="./js/proveedores.js?v=20260817a"></script>
++  <script src="./js/compras.js?v=20260817a"></script>
++  <script src="./js/ajustes.js?v=20260817a"></script>
++  <script src="./js/clientes.js?v=20260817a"></script>
++  <script src="./js/egresos.js?v=20260817a"></script>
++  <script src="./js/cierre.js?v=20260817a"></script>
++  <script src="./js/reportes.js?v=20260817a"></script>
++  <script src="./js/historial.js?v=20260817a"></script>
++  <script src="./js/config.js?v=20260817a"></script>
++  <script src="./js/patrimonio.js?v=20260817a"></script>
+   <script>
+-    (async function init() { await loadDB(); render(); })();
++    (async function init() {
++      if (!isLoggedIn()) { renderLogin(); return; }
++      startIdleWatch();
++      await loadDB();
++      render();
++    })();
+   </script>
+ </body>
+ 
+diff --git a/js/auth.js b/js/auth.js
+new file mode 100644
+index 0000000..53e0bab
+--- /dev/null
++++ b/js/auth.js
+@@ -0,0 +1,142 @@
++
++
++/* Autenticación con la colección "users" de PocketBase.
++   No hay registro público: los usuarios se crean a mano desde el
++   panel admin de PocketBase (Collections > users > + New record).
++
++   Capas de protección de esta pantalla:
++   1. Sesión respaldada en sessionStorage (ver store.js) — se pierde al
++      cerrar la pestaña/navegador, no vive para siempre.
++   2. Bloqueo temporal tras varios intentos fallidos seguidos (freno
++      básico anti fuerza bruta desde el navegador).
++   3. Cierre de sesión automático por inactividad. */
++
++const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 minutos sin actividad
++const MAX_ATTEMPTS = 5;
++const LOCKOUT_MS = 60 * 1000; // 1 minuto
++
++let failedAttempts = 0;
++let lockedUntil = 0;
++let idleTimer = null;
++
++function isLoggedIn() {
++  return pb.authStore.isValid;
++}
++
++function renderLogin() {
++  stopIdleWatch();
++  const app = document.getElementById('app');
++  const locked = Date.now() < lockedUntil;
++  app.innerHTML = `
++<div class="login-wrap">
++  <form class="card card-pad login-card" onsubmit="return handleLogin(event)">
++    <img src="${LOGO_ICON}" alt="Mantente" class="login-logo">
++    <div class="login-title">MANTENTE</div>
++    <div class="login-sub">Decisiones claras, negocios rentables</div>
++    <div class="field">
++      <label>Usuario o correo</label>
++      <input id="loginUser" type="text" autocomplete="username" required ${locked ? 'disabled' : ''}>
++    </div>
++    <div class="field">
++      <label>Contraseña</label>
++      <input id="loginPass" type="password" autocomplete="current-password" required ${locked ? 'disabled' : ''}>
++    </div>
++    <div id="loginError" class="login-error" style="display:none;"></div>
++    <button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center;padding:11px;" type="submit" ${locked ? 'disabled' : ''}>Entrar</button>
++  </form>
++</div>`;
++  if (locked) {
++    showLockoutMessage();
++  } else {
++    document.getElementById('loginUser').focus();
++  }
++}
++
++function showLockoutMessage() {
++  const errEl = document.getElementById('loginError');
++  if (!errEl) return;
++  const tick = () => {
++    const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
++    if (remaining <= 0) { renderLogin(); return; }
++    errEl.style.display = 'block';
++    errEl.textContent = `Demasiados intentos fallidos. Intenta de nuevo en ${remaining}s.`;
++    setTimeout(tick, 1000);
++  };
++  tick();
++}
++
++async function handleLogin(e) {
++  e.preventDefault();
++  if (Date.now() < lockedUntil) return false;
++  const identity = document.getElementById('loginUser').value.trim();
++  const password = document.getElementById('loginPass').value;
++  const btn = document.getElementById('loginBtn');
++  const errEl = document.getElementById('loginError');
++  errEl.style.display = 'none';
++  btn.disabled = true;
++  try {
++    await pb.collection('users').authWithPassword(identity, password);
++    failedAttempts = 0;
++    await loadDB();
++    render();
++    startIdleWatch();
++  } catch (err) {
++    failedAttempts++;
++    if (failedAttempts >= MAX_ATTEMPTS) {
++      lockedUntil = Date.now() + LOCKOUT_MS;
++      renderLogin();
++      return false;
++    }
++    errEl.textContent = 'Usuario o contraseña incorrectos.';
++    errEl.style.display = 'block';
++    btn.disabled = false;
++  }
++  return false;
++}
++
++function logout() {
++  pb.authStore.clear();
++  // Redundancia a propósito: por si algún día vuelve a colarse algo en
++  // localStorage (versiones viejas cacheadas, extensiones, etc.), lo
++  // barremos también al cerrar sesión.
++  try { localStorage.removeItem('pocketbase_auth'); localStorage.removeItem('pb_auth'); } catch (e) { }
++  try { sessionStorage.clear(); } catch (e) { }
++  renderLogin();
++}
++
++function startIdleWatch() {
++  stopIdleWatch();
++  const reset = () => {
++    clearTimeout(idleTimer);
++    idleTimer = setTimeout(() => {
++      if (isLoggedIn()) logout();
++    }, IDLE_LIMIT_MS);
++  };
++  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(ev =>
++    window.addEventListener(ev, reset, { passive: true })
++  );
++  window._idleReset = reset;
++  reset();
++}
++
++function stopIdleWatch() {
++  clearTimeout(idleTimer);
++  if (window._idleReset) {
++    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(ev =>
++      window.removeEventListener(ev, window._idleReset)
++    );
++    window._idleReset = null;
++  }
++}
++
++// Si el token expira o se invalida en cualquier momento, vuelve al login
++pb.authStore.onChange(() => {
++  if (!pb.authStore.isValid && document.getElementById('app')) renderLogin();
++});
++
++// Expose to global scope for inline HTML handlers
++window.isLoggedIn = isLoggedIn;
++window.renderLogin = renderLogin;
++window.handleLogin = handleLogin;
++window.logout = logout;
++window.startIdleWatch = startIdleWatch;
+diff --git a/js/store.js b/js/store.js
+index f787c7c..864457d 100644
+--- a/js/store.js
++++ b/js/store.js
+@@ -21,7 +21,68 @@ function money(n, cur) {
+ }
+ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+ 
+-const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
++/* Auth store propio, respaldado en sessionStorage en vez de localStorage.
++   Así, la sesión vive solo mientras la pestaña/ventana del navegador esté
++   abierta: al cerrarla, se pierde el token y hay que iniciar sesión de
++   nuevo. Un refresh (F5) dentro de la misma pestaña sí mantiene la sesión
++   — eso es normal y esperado, no un fallo de seguridad. */
++class SessionAuthStore {
++  constructor(key) {
++    this.key = key || 'mantente_auth';
++    this._listeners = [];
++    this.token = '';
++    this.record = null;
++    try {
++      const raw = sessionStorage.getItem(this.key);
++      if (raw) {
++        const d = JSON.parse(raw);
++        this.token = d.token || '';
++        this.record = d.record || null;
++      }
++    } catch (e) { /* storage no disponible: sesión solo en memoria */ }
++  }
++  get isValid() {
++    if (!this.token || !this.record || !this.record.id) return false;
++    try {
++      const parts = this.token.split('.');
++      if (parts.length !== 3) return false;
++      const payload = JSON.parse(atob(parts[1]));
++      // Fail-closed: sin "exp" válido en el token, la sesión se considera
++      // inválida (antes se daba por válida "para siempre", lo cual era
++      // el hueco de seguridad).
++      return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
++    } catch (e) { return false; }
++  }
++  save(token, record) {
++    this.token = token || '';
++    this.record = record || null;
++    try { sessionStorage.setItem(this.key, JSON.stringify({ token: this.token, record: this.record })); } catch (e) { }
++    this._trigger();
++  }
++  clear() {
++    this.token = '';
++    this.record = null;
++    try { sessionStorage.removeItem(this.key); } catch (e) { }
++    this._trigger();
++  }
++  onChange(cb) {
++    this._listeners.push(cb);
++    return () => { this._listeners = this._listeners.filter(l => l !== cb); };
++  }
++  _trigger() { this._listeners.forEach(l => { try { l(this.token, this.record); } catch (e) { } }); }
++}
++
++/* Purga de cualquier rastro de la sesión "vieja" (antes de este parche
++   de seguridad la app usaba localStorage por defecto para guardar el
++   token). Si el navegador tenía eso guardado de antes, o si por caché
++   quedó una copia vieja de la app corriendo, esto lo borra apenas carga
++   cualquier página nueva — así nunca puede colarse como sesión válida. */
++try {
++  localStorage.removeItem('pocketbase_auth');
++  localStorage.removeItem('pb_auth');
++} catch (e) { }
++
++const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev', new SessionAuthStore());
+ 
+ 
+ // Campos que se guardan como texto JSON en PocketBase
+@@ -77,11 +138,13 @@ async function loadDB() {
+ 
+ async function save(key) {
+   try {
++    const companyId = (pb.authStore.record && pb.authStore.record.companyId) || '';
+     if (key === 'config') {
+       const existing = await pb.collection(key).getFullList();
+       const data = serializeRecord(key, DB.config);
+       data.cop = DB.config.exchangeRateCop || 0;
+       delete data.exchangeRateCop;
++      data.companyId = companyId;
+       if (existing.length > 0) {
+         await pb.collection(key).update(existing[0].id, data);
+       } else {
+@@ -96,6 +159,7 @@ async function save(key) {
+     const ops = [];
+     for (const item of DB[key]) {
+       const data = serializeRecord(key, item);
++      data.companyId = companyId;
+       if (pbMap.has(item.id)) {
+         ops.push(pb.collection(key).update(item.id, data));
+         pbMap.delete(item.id);
+@@ -115,6 +179,27 @@ async function save(key) {
+   } catch (e) { console.error(e); toast('Error guardando datos', true); }
+ }
+ 
++/* Backfill de un solo click: reescribe TODOS tus registros existentes
++   con el companyId del usuario actual. Úsalo una sola vez, justo después
++   de crear tu empresa y asignarte su companyId, para "adoptar" los datos
++   que ya tenías antes de activar multiempresa.
++   Antes de nada, refresca los datos del usuario desde PocketBase — si le
++   asignaste el companyId desde el Admin UI DESPUÉS de haber iniciado
++   sesión en la app, la sesión abierta todavía tenía la copia vieja (sin
++   companyId) guardada en memoria, y sin este refresh el backfill escribiría
++   companyId vacío en todo sin dar ningún error. */
++async function syncAllWithCompany() {
++  const fresh = await pb.collection('users').authRefresh();
++  const companyId = fresh?.record?.companyId || '';
++  if (!companyId) {
++    toast('Tu usuario todavía no tiene companyId asignado en PocketBase', true);
++    return;
++  }
++  for (const k of STORE_KEYS) {
++    await save(k);
++  }
++}
++
+ /* Evita doble envío: deshabilita el botón mientras la acción está en curso
+    y lo reactiva siempre al terminar (éxito o error). */
+ async function guardedRun(btn, fn) {
+@@ -237,6 +322,7 @@ window.PRICE_TIERS = PRICE_TIERS;
+ window.pb = pb;
+ window.salesOnDate = salesOnDate;
+ window.save = save;
++window.syncAllWithCompany = syncAllWithCompany;
+ window.serializeRecord = serializeRecord;
+ window.smartMatch = smartMatch;
+ window.toast = toast;
