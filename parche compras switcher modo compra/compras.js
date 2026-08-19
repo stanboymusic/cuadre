@@ -8,7 +8,7 @@ function renderCompras(el) {
   <div class="row-fields">
     <div class="field"><label>Proveedor</label>
       <select id="pu_sup" onchange="setPurchaseSupplier(this.value)">
-        <option value="">- Selecciona -</option>
+        <option value="">— Selecciona —</option>
         ${DB.suppliers.map(s => `<option value="${s.id}" ${PURCHASE_DRAFT.supplierId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
       </select>
     </div>
@@ -20,7 +20,7 @@ function renderCompras(el) {
   <div class="section-title" style="margin:16px 0 8px 0;"><h2 style="font-size:14px;">Productos comprados</h2></div>
   <div class="searchbar">
     <select id="pu_prod" style="flex:1">
-      <option value="">- Selecciona un producto -</option>
+      <option value="">— Selecciona un producto —</option>
       ${DB.products.map(p => `<option value="${p.id}">${esc(p.name)} (costo actual ${money(p.cost, 'USD')})</option>`).join('')}
     </select>
     <input id="pu_qty" type="number" min="1" value="1" style="width:80px" placeholder="Cant.">
@@ -39,7 +39,7 @@ function renderCompras(el) {
   }).join('')}</tbody></table></div>
     <div style="text-align:right;margin-top:10px;font-weight:700;">Total compra: <span class="amt">${money(totalUsd, 'USD')}</span></div>
     <button class="btn btn-primary" style="margin-top:12px;" onclick="guardedRun(this,finalizePurchase)">Registrar compra</button>
-  ` : `<div class="empty" style="padding:24px;"><div class="big">🛒</div>Añade productos para registrar la compra.</div>`}
+  ` : `<div class="empty" style="padding:24px;"><div class="big">⇩</div>Añade productos para registrar la compra.</div>`}
 </div>
   `;
 }
@@ -107,7 +107,7 @@ function showPurchaseInvoice(purchase) {
 <div class="modal-head"><h3>Factura de compra C-${purchase.purchaseNo}</h3><button class="x-close">✕</button></div>
 <div class="modal-body" id="purchaseInvoiceBody">
   <div style="margin-bottom:10px;">
-    <div><b>Proveedor:</b> ${esc(supplier ? supplier.name : '-')}</div>
+    <div><b>Proveedor:</b> ${esc(supplier ? supplier.name : '—')}</div>
     <div><b>Fecha:</b> ${fmtDate(purchase.date)}</div>
     <div><b>N° de compra:</b> C-${purchase.purchaseNo}</div>
   </div>
