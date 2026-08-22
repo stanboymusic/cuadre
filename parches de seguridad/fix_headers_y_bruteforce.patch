@@ -1,0 +1,76 @@
+diff --git a/js/auth.js b/js/auth.js
+index 53e0bab..2b30af3 100644
+--- a/js/auth.js
++++ b/js/auth.js
+@@ -14,9 +14,25 @@
+ const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 minutos sin actividad
+ const MAX_ATTEMPTS = 5;
+ const LOCKOUT_MS = 60 * 1000; // 1 minuto
++const LOGIN_GUARD_KEY = 'mantente_login_guard';
+ 
+-let failedAttempts = 0;
+-let lockedUntil = 0;
++/* failedAttempts/lockedUntil viven en sessionStorage (no solo en memoria):
++   antes, un simple refresh (F5) reiniciaba estas variables a 0 y anulaba
++   por completo el bloqueo anti fuerza-bruta. Ahora sobrevive mientras la
++   pestaña siga abierta, igual que la sesión. */
++function readLoginGuard() {
++  try {
++    const raw = sessionStorage.getItem(LOGIN_GUARD_KEY);
++    if (!raw) return { failedAttempts: 0, lockedUntil: 0 };
++    const d = JSON.parse(raw);
++    return { failedAttempts: d.failedAttempts || 0, lockedUntil: d.lockedUntil || 0 };
++  } catch (e) { return { failedAttempts: 0, lockedUntil: 0 }; }
++}
++function writeLoginGuard(state) {
++  try { sessionStorage.setItem(LOGIN_GUARD_KEY, JSON.stringify(state)); } catch (e) { }
++}
++
++let { failedAttempts, lockedUntil } = readLoginGuard();
+ let idleTimer = null;
+ 
+ function isLoggedIn() {
+@@ -77,6 +93,7 @@ async function handleLogin(e) {
+   try {
+     await pb.collection('users').authWithPassword(identity, password);
+     failedAttempts = 0;
++    writeLoginGuard({ failedAttempts, lockedUntil: 0 });
+     await loadDB();
+     render();
+     startIdleWatch();
+@@ -84,9 +101,11 @@ async function handleLogin(e) {
+     failedAttempts++;
+     if (failedAttempts >= MAX_ATTEMPTS) {
+       lockedUntil = Date.now() + LOCKOUT_MS;
++      writeLoginGuard({ failedAttempts, lockedUntil });
+       renderLogin();
+       return false;
+     }
++    writeLoginGuard({ failedAttempts, lockedUntil: 0 });
+     errEl.textContent = 'Usuario o contraseña incorrectos.';
+     errEl.style.display = 'block';
+     btn.disabled = false;
+diff --git a/vercel.json b/vercel.json
+index 3fb52da..0425419 100644
+--- a/vercel.json
++++ b/vercel.json
+@@ -1,5 +1,19 @@
+ {
+   "headers": [
++    {
++      "source": "/(.*)",
++      "headers": [
++        { "key": "X-Content-Type-Options", "value": "nosniff" },
++        { "key": "X-Frame-Options", "value": "DENY" },
++        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
++        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
++        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
++        {
++          "key": "Content-Security-Policy",
++          "value": "default-src 'self'; connect-src 'self' https://fragrant-sandbar-3808.fly.dev; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
++        }
++      ]
++    },
+     {
+       "source": "/",
+       "headers": [
