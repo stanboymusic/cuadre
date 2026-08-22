@@ -39,13 +39,13 @@ function renderProductos(el) {
 
   el.innerHTML = `
 <div class="searchbar">
-  <input id="prodSearch" placeholder="Buscar por nombre o código." value="${esc(PROD_FILTER)}" oninput="filterAndRerender(v=>PROD_FILTER=v, this, renderProductos)">
+  <input id="prodSearch" placeholder="Buscar por nombre o código…" value="${esc(PROD_FILTER)}" oninput="filterAndRerender(v=>PROD_FILTER=v, this, renderProductos)">
   <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;white-space:nowrap;">
     <input type="checkbox" ${PURCHASE_MODE ? 'checked' : ''} onchange="togglePurchaseMode()"> Modo compra
   </label>
   ${PURCHASE_MODE ? `
     <select id="pm_sup" style="max-width:200px" onchange="setPurchaseSupplier(this.value)">
-      <option value="">- Proveedor -</option>
+      <option value="">— Proveedor —</option>
       ${DB.suppliers.map(s => `<option value="${s.id}" ${PURCHASE_DRAFT.supplierId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
     </select>
     <button class="btn btn-primary" ${!cartCount ? 'disabled' : ''} onclick="guardedRun(this,finalizePurchaseFromProductos)">Finalizar compra ${cartCount ? `(${cartCount})` : ''}</button>
@@ -57,13 +57,13 @@ ${list.length ? `
   <table><thead><tr><th>Código</th><th>Producto</th><th>Costo (PB)</th>${PRICE_TIERS.map(t => `<th>${t.label}</th>`).join('')}<th>Existencia</th><th>Ubicación</th>${PURCHASE_MODE ? `<th>Cant.</th><th>Costo unit.</th>` : ''}<th></th></tr></thead>
   <tbody>${list.map(p => `
     <tr>
-      <td class="mono">${esc(p.code || '-')}</td>
+      <td class="mono">${esc(p.code || '—')}</td>
       <td>${esc(p.name)}</td>
       <td class="amt">${money(p.cost, 'USD')}</td>
       ${PRICE_TIERS.map(t => `<td class="amt">${money(tierPrice(p, t.key), 'USD')}</td>`).join('')}
 
       <td class="amt">${(p.stock || 0) <= (p.minStock || 0) ? `<span class="tag tag-clay">${p.stock || 0}</span>` : (p.stock || 0)}</td>
-      <td>${esc(p.location || '-')}</td>
+      <td>${esc(p.location || '—')}</td>
       ${PURCHASE_MODE ? `
         <td><input type="number" min="1" value="${purchaseRow(p).qty}" style="width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:6px" onchange="setPurchaseRowQty('${p.id}', this.value)"></td>
         <td><input type="number" step="0.01" value="${purchaseRow(p).unitCost}" style="width:84px;padding:4px 6px;border:1px solid var(--line);border-radius:6px" onchange="setPurchaseRowCost('${p.id}', this.value)"></td>
@@ -75,7 +75,7 @@ ${list.length ? `
          <button class="btn btn-ghost btn-sm" onclick="openProductForm('${p.id}')">Editar</button>`}
       </td>
     </tr>`).join('')}</tbody></table>
-</div>` : `<div class="empty"><div class="big">📦</div>No hay productos que coincidan. <div class="help-empty-cta"><button class="btn btn-gold" onclick="openProductForm()">+ Nuevo producto</button></div></div>`}
+</div>` : `<div class="empty"><div class="big">▣</div>No hay productos que coincidan. <div class="help-empty-cta"><button class="btn btn-gold" onclick="openProductForm()">+ Nuevo producto</button></div></div>`}
   `;
 }
 function openProductForm(id) {
@@ -87,7 +87,7 @@ function openProductForm(id) {
     <div class="field"><label>Código</label><input id="f_code" value="${esc(p.code || '')}"></div>
     <div class="field" style="grid-column:span 2;"><label>Nombre</label><input id="f_name" value="${esc(p.name || '')}"></div>
   </div>
-  <div class="field"><label>Precio base - PB (costo del producto, USD)</label><input id="f_cost" type="number" step="0.01" value="${p.cost || 0}" oninput="updatePricePreview()"></div>
+  <div class="field"><label>Precio base — PB (costo del producto, USD)</label><input id="f_cost" type="number" step="0.01" value="${p.cost || 0}" oninput="updatePricePreview()"></div>
 
   <div class="card card-pad" style="background:var(--paper);margin:10px 0;">
     <div style="font-weight:600;font-size:12.5px;margin-bottom:8px;">Precios oficiales (se calculan solos a partir del PB)</div>
@@ -100,7 +100,7 @@ function openProductForm(id) {
   </div>
   ${!id ? `<div class="hint">El producto se crea con existencia 0. Para agregar unidades, regístralo en Compras o desde el Modo compra del catálogo.</div>` : ''}
   <div class="field"><label>Proveedor</label>
-    <select id="f_sup"><option value="">-</option>${DB.suppliers.map(s => `<option value="${s.id}" ${p.supplierId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
+    <select id="f_sup"><option value="">—</option>${DB.suppliers.map(s => `<option value="${s.id}" ${p.supplierId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
   </div>
 </div>
 <div class="modal-foot">
