@@ -1,0 +1,48 @@
+diff --git a/js/productos.js b/js/productos.js
+index 6a5c6ff..38e1e16 100644
+--- a/js/productos.js
++++ b/js/productos.js
+@@ -93,6 +93,8 @@ function openProductForm(id) {
+     <div style="font-weight:600;font-size:12.5px;margin-bottom:8px;">Precios oficiales (se calculan solos a partir del PB)</div>
+     <div id="pricePreview" class="row-fields" style="grid-template-columns:repeat(5,1fr);"></div>
+   </div>
++  <div class="field"><label>Precio personalizado (USD) — opcional</label><input id="f_customPrice" type="number" step="0.01" value="${p.price || 0}"></div>
++  <div class="hint" style="margin:-6px 0 10px 0;">Se escribe a mano, no se recalcula con el PB. Si lo dejas en 0, ese nivel se verá en $0,00 en Ventas — no lo selecciones ahí hasta ponerle un valor.</div>
+   <div class="row-fields">
+     ${id ? `<div class="field"><label>Existencia actual</label><input value="${p.stock || 0}" disabled title="La existencia solo se actualiza registrando una compra en Compras."></div>` : ''}
+     <div class="field"><label>Mínimo (alerta)</label><input id="f_min" type="number" value="${p.minStock || 0}"></div>
+@@ -116,7 +118,7 @@ function updatePricePreview() {
+   const cost = Number(document.getElementById('f_cost').value) || 0;
+   const preview = document.getElementById('pricePreview');
+   if (!preview) return;
+-  preview.innerHTML = PRICE_TIERS.map(t => `
++  preview.innerHTML = PRICE_TIERS.filter(t => t.key !== 'custom').map(t => `
+     <div class="field" style="margin:0;">
+       <label>${t.label} (${t.margin}%)</label>
+       <input value="${money(tierPrice({ cost }, t.key), 'USD')}" readonly>
+@@ -127,6 +129,7 @@ async function saveProduct(id) {
+     code: document.getElementById('f_code').value.trim(),
+     name: document.getElementById('f_name').value.trim(),
+     cost: Number(document.getElementById('f_cost').value) || 0,
++    price: Number(document.getElementById('f_customPrice').value) || 0,
+     minStock: Number(document.getElementById('f_min').value) || 0,
+     location: document.getElementById('f_loc').value.trim(),
+     supplierId: document.getElementById('f_sup').value,
+diff --git a/js/store.js b/js/store.js
+index 864457d..1b6fb72 100644
+--- a/js/store.js
++++ b/js/store.js
+@@ -263,9 +263,13 @@ const PRICE_TIERS = [
+   { key: 'ami', label: 'Precio AMI', margin: 20 },
+   { key: 'divisa', label: 'Precio Divisa', margin: 25 },
+   { key: 'bcv', label: 'Precio BCV', margin: 30 },
++  // "Precio personalizado" no se calcula desde el PB: se escribe a mano por
++  // producto y se guarda en el campo (reutilizado) products.price.
++  { key: 'custom', label: 'Precio personalizado', margin: null },
+ ];
+ function tierPrice(product, tierKey) {
+   const tier = PRICE_TIERS.find(t => t.key === tierKey) || PRICE_TIERS[0];
++  if (tier.key === 'custom') return Number(product && product.price) || 0;
+   const pb = Number(product && product.cost) || 0;
+   return tier.margin >= 100 ? pb : pb / (1 - tier.margin / 100);
+ }
