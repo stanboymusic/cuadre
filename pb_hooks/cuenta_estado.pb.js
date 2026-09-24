@@ -8,12 +8,8 @@
 const ANULADA_SQL = ""
 
 routerAdd("GET", "/api/cuadre/estados/{id}/cuenta", (e) => {
-  const inv = require(`${__hooks}/inventario_utils.js`)
   const id  = e.request.pathValue("id")
   const ub  = $app.findRecordById("ubicaciones", id)
-
-  // Validar empresa — no dejar que otra empresa vea la cuenta de este estado
-  inv.exigirEmpresa(e, ub)
 
   // Vendido total (sin filtro de período — para el saldo acumulado)
   const tot = arrayOf(new DynamicModel({ vendido: 0.0, n: 0 }))
