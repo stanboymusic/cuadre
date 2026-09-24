@@ -8,48 +8,39 @@ migrate((app) => {
   const COMP_RULE = "@request.auth.id != '' && companyId = @request.auth.companyId"
   const AUTH_RULE = "@request.auth.id != ''"
 
-  // ── 1. Agregar companyId a las colecciones nuevas del Parche 1 ──────────────
-  // El campo ya existe en products, sales, expenses, etc. Solo lo añadimos
-  // a ubicaciones, stock_ubicacion, envios, envio_items, envio_eventos,
-  // movimientos_inventario, rendiciones.
-  const nuevas = [
-    "ubicaciones", "stock_ubicacion", "envios", "envio_items",
-    "envio_eventos", "movimientos_inventario", "rendiciones",
-  ]
-  for (const nombre of nuevas) {
-    const col = app.findCollectionByNameOrId(nombre)
-    // Evitar agregar duplicado si ya existe (idempotente)
-    try { col.fields.getByName("companyId"); continue } catch (_) {}
-    col.fields.add(new Field({
-      "id":       "text_companyid_" + nombre.replace(/_/g, ""),
-      "name":     "companyId",
-      "type":     "text",
-      "required": false,
-    }))
-    app.save(col)
-  }
-
-  // ── 2. Aplicar reglas de aislamiento por empresa a las colecciones nuevas ────
-  // Las rutas personalizadas (despachar/recibir/etc.) se saltan estas reglas
-  // y hacen su propio chequeo. Estas reglas cubren el acceso directo a la API
-  // de colecciones (listados, visualización, etc.).
+  // ── 1 & 2. Agregar companyId y aplicar reglas de aislamiento ──────────────
   const colsAislar = [
     "ubicaciones", "envios", "envio_items", "envio_eventos",
     "movimientos_inventario", "rendiciones",
   ]
   for (const nombre of colsAislar) {
     const col = app.findCollectionByNameOrId(nombre)
+    try { col.fields.getByName("companyId"); } catch (_) {
+      col.fields.add(new Field({
+        "id":       "text_companyid_" + nombre.replace(/_/g, ""),
+        "name":     "companyId",
+        "type":     "text",
+        "required": false,
+      }))
+    }
     col.listRule   = COMP_RULE
     col.viewRule   = COMP_RULE
     col.createRule = COMP_RULE
     col.updateRule = COMP_RULE
-    // No se pueden borrar directamente; solo por rutas autorizadas
     col.deleteRule = null
     app.save(col)
   }
 
   // stock_ubicacion: solo lectura directa; escritura exclusiva por hooks
   const su = app.findCollectionByNameOrId("stock_ubicacion")
+  try { su.fields.getByName("companyId"); } catch (_) {
+    su.fields.add(new Field({
+      "id":       "text_companyid_stockubicacion",
+      "name":     "companyId",
+      "type":     "text",
+      "required": false,
+    }))
+  }
   su.listRule   = COMP_RULE
   su.viewRule   = COMP_RULE
   su.createRule = null
