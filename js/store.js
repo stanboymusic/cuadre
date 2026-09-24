@@ -200,6 +200,32 @@ async function syncAllWithCompany() {
   }
 }
 
+/**
+ * Punto 2 — Anti "stock pisado":
+ * Recarga una colección desde PocketBase a DB[key] sin tocar las demás.
+ * Llamar después de cualquier acción del servidor que modifique el stock
+ * (despachar, cancelar, ajuste, devolución) y antes de permitir save(key).
+ *
+ * Uso: await reloadKey('products')  — actualiza DB.products desde PB.
+ */
+async function reloadKey(key) {
+  try {
+    if (key === 'config') {
+      const records = await pb.collection(key).getFullList();
+      if (records.length > 0) {
+        const parsed = parseRecord(key, records[0]);
+        parsed.exchangeRateCop = parsed.cop || 0;
+        DB[key] = parsed;
+      }
+      return;
+    }
+    const records = await pb.collection(key).getFullList();
+    DB[key] = records.length > 0 ? records.map(r => parseRecord(key, r)) : [];
+  } catch (e) {
+    console.error('reloadKey(' + key + '):', e);
+  }
+}
+
 /* Evita doble envío: deshabilita el botón mientras la acción está en curso
    y lo reactiva siempre al terminar (éxito o error). */
 async function guardedRun(btn, fn) {
@@ -326,6 +352,7 @@ window.PRICE_TIERS = PRICE_TIERS;
 window.pb = pb;
 window.salesOnDate = salesOnDate;
 window.save = save;
+window.reloadKey = reloadKey;
 window.syncAllWithCompany = syncAllWithCompany;
 window.serializeRecord = serializeRecord;
 window.smartMatch = smartMatch;

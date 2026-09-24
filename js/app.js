@@ -34,6 +34,11 @@ const NAV = [
     ]
   },
   {
+    group: 'Distribución', items: [
+      { id: 'estados', label: 'Estados', ic: '🗺️' },
+    ]
+  },
+  {
     group: 'Sistema', items: [
       { id: 'config', label: 'Configuración', ic: '⚙' },
     ]
@@ -91,7 +96,7 @@ function render() {
     productos: renderProductos, servicios: renderServicios, compras: renderCompras,
     ajustes: renderAjustes, clientes: renderClientes, proveedores: renderProveedores,
     egresos: renderEgresos, reportes: renderReportes, historial: renderHistorial, config: renderConfig,
-    patrimonio: renderPatrimonio
+    patrimonio: renderPatrimonio, estados: renderEstados,
   };
   (renderers[VIEW] || renderDashboard)(c);
 }

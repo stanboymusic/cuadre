@@ -1,6 +1,7 @@
 
 
 function renderDashboard(el) {
+  const invConfigurada = !!(DB.config && DB.config.initialInvestment > 0);
   const today = todayISO();
   const tSales = salesOnDate(today);
   const tExpenses = expensesOnDate(today);
@@ -14,6 +15,17 @@ function renderDashboard(el) {
   const receivables = DB.clients.reduce((a, c) => a + Math.max(clientBalance(c.id), 0), 0);
 
   el.innerHTML = `
+${!invConfigurada ? `
+<div class="card card-pad" id="inv-banner" style="margin-bottom:16px;background:var(--gold-tint);border-color:var(--gold);border-width:1px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+  <div>
+    <b style="color:var(--gold-deep);">💡 Inversión inicial no configurada</b>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px;">Es opcional. Si la configuras, podrás ver cuánto ha generado tu negocio desde que arrancaste. El sistema funciona igual sin ella.</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+    <button class="btn btn-sm btn-gold" onclick="navigate('patrimonio')">Configurar</button>
+    <button class="btn btn-sm btn-ghost" onclick="document.getElementById('inv-banner').remove()" title="Cerrar aviso">✕</button>
+  </div>
+</div>` : ''}
 <div class="grid grid-4">
   <div class="stat"><div class="lbl">Ventas de hoy</div><div class="val amt">${money(totalVentasBs, 'Bs')}</div><div class="sub">${money(totalVentasUsd, 'USD')} · ${tSales.length} venta(s)</div></div>
   <div class="stat pos"><div class="lbl">Utilidad bruta hoy</div><div class="val amt">${money(utilidadBruta, 'USD')}</div><div class="sub">Ventas − costo de mercancía</div></div>
