@@ -1,0 +1,318 @@
+diff --git a/index.html b/index.html
+index 9be5254..5f45d4f 100644
+--- a/index.html
++++ b/index.html
+@@ -330,6 +330,89 @@
+       padding: 20px;
+     }
+ 
++    /* ---------- login ---------- */
++    .login-wrap {
++      width: 100%;
++      min-height: 100vh;
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      padding: 20px;
++      position: relative;
++      overflow: hidden;
++      background: linear-gradient(160deg, var(--gold-tint) 0%, #f3e2ae 45%, var(--gold) 100%);
++    }
++
++    .login-wrap::before,
++    .login-wrap::after {
++      content: '';
++      position: absolute;
++      border-radius: 50%;
++      filter: blur(90px);
++      z-index: 0;
++    }
++
++    .login-wrap::before {
++      width: 480px;
++      height: 480px;
++      top: -140px;
++      left: -120px;
++      background: var(--gold-deep);
++      opacity: .45;
++    }
++
++    .login-wrap::after {
++      width: 520px;
++      height: 520px;
++      bottom: -160px;
++      right: -140px;
++      background: var(--gold);
++      opacity: .55;
++    }
++
++    .login-card {
++      position: relative;
++      z-index: 1;
++      width: 100%;
++      max-width: 340px;
++      text-align: center;
++      backdrop-filter: blur(6px);
++      background: rgba(255, 255, 255, .92);
++    }
++
++    .login-logo {
++      width: 56px;
++      height: 56px;
++      object-fit: contain;
++      margin: 0 auto 10px;
++      display: block;
++    }
++
++    .login-title {
++      font-family: 'Fraunces', serif;
++      font-weight: 700;
++      font-size: 20px;
++      letter-spacing: .04em;
++      color: var(--ink);
++    }
++
++    .login-sub {
++      color: var(--ink-soft);
++      font-size: 12.5px;
++      margin: 2px 0 20px;
++    }
++
++    .login-card .field {
++      text-align: left;
++    }
++
++    .login-error {
++      color: var(--clay);
++      font-size: 12.5px;
++      margin: 4px 0 12px;
++      text-align: left;
++    }
++
+     .grid {
+       display: grid;
+       gap: 16px;
+@@ -900,6 +983,7 @@
+   <div id="toast" class="toast"></div>
+ 
+     <script src="./js/store.js"></script>
++  <script src="./js/auth.js"></script>
+   <script src="./js/app.js"></script>
+   <script src="./js/dashboard.js"></script>
+   <script src="./js/ventas.js"></script>
+@@ -916,7 +1000,12 @@
+   <script src="./js/config.js"></script>
+   <script src="./js/patrimonio.js"></script>
+   <script>
+-    (async function init() { await loadDB(); render(); })();
++    (async function init() {
++      if (!isLoggedIn()) { renderLogin(); return; }
++      startIdleWatch();
++      await loadDB();
++      render();
++    })();
+   </script>
+ </body>
+ 
+diff --git a/js/auth.js b/js/auth.js
+new file mode 100644
+index 0000000..62550e2
+--- /dev/null
++++ b/js/auth.js
+@@ -0,0 +1,137 @@
++
++
++/* Autenticación con la colección "users" de PocketBase.
++   No hay registro público: los usuarios se crean a mano desde el
++   panel admin de PocketBase (Collections > users > + New record).
++
++   Capas de protección de esta pantalla:
++   1. Sesión respaldada en sessionStorage (ver store.js) — se pierde al
++      cerrar la pestaña/navegador, no vive para siempre.
++   2. Bloqueo temporal tras varios intentos fallidos seguidos (freno
++      básico anti fuerza bruta desde el navegador).
++   3. Cierre de sesión automático por inactividad. */
++
++const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 minutos sin actividad
++const MAX_ATTEMPTS = 5;
++const LOCKOUT_MS = 60 * 1000; // 1 minuto
++
++let failedAttempts = 0;
++let lockedUntil = 0;
++let idleTimer = null;
++
++function isLoggedIn() {
++  return pb.authStore.isValid;
++}
++
++function renderLogin() {
++  stopIdleWatch();
++  const app = document.getElementById('app');
++  const locked = Date.now() < lockedUntil;
++  app.innerHTML = `
++<div class="login-wrap">
++  <form class="card card-pad login-card" onsubmit="return handleLogin(event)">
++    <img src="${LOGO_ICON}" alt="Mantente" class="login-logo">
++    <div class="login-title">MANTENTE</div>
++    <div class="login-sub">Decisiones claras, negocios rentables</div>
++    <div class="field">
++      <label>Usuario o correo</label>
++      <input id="loginUser" type="text" autocomplete="username" required ${locked ? 'disabled' : ''}>
++    </div>
++    <div class="field">
++      <label>Contraseña</label>
++      <input id="loginPass" type="password" autocomplete="current-password" required ${locked ? 'disabled' : ''}>
++    </div>
++    <div id="loginError" class="login-error" style="display:none;"></div>
++    <button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center;padding:11px;" type="submit" ${locked ? 'disabled' : ''}>Entrar</button>
++  </form>
++</div>`;
++  if (locked) {
++    showLockoutMessage();
++  } else {
++    document.getElementById('loginUser').focus();
++  }
++}
++
++function showLockoutMessage() {
++  const errEl = document.getElementById('loginError');
++  if (!errEl) return;
++  const tick = () => {
++    const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
++    if (remaining <= 0) { renderLogin(); return; }
++    errEl.style.display = 'block';
++    errEl.textContent = `Demasiados intentos fallidos. Intenta de nuevo en ${remaining}s.`;
++    setTimeout(tick, 1000);
++  };
++  tick();
++}
++
++async function handleLogin(e) {
++  e.preventDefault();
++  if (Date.now() < lockedUntil) return false;
++  const identity = document.getElementById('loginUser').value.trim();
++  const password = document.getElementById('loginPass').value;
++  const btn = document.getElementById('loginBtn');
++  const errEl = document.getElementById('loginError');
++  errEl.style.display = 'none';
++  btn.disabled = true;
++  try {
++    await pb.collection('users').authWithPassword(identity, password);
++    failedAttempts = 0;
++    await loadDB();
++    render();
++    startIdleWatch();
++  } catch (err) {
++    failedAttempts++;
++    if (failedAttempts >= MAX_ATTEMPTS) {
++      lockedUntil = Date.now() + LOCKOUT_MS;
++      renderLogin();
++      return false;
++    }
++    errEl.textContent = 'Usuario o contraseña incorrectos.';
++    errEl.style.display = 'block';
++    btn.disabled = false;
++  }
++  return false;
++}
++
++function logout() {
++  pb.authStore.clear();
++  renderLogin();
++}
++
++function startIdleWatch() {
++  stopIdleWatch();
++  const reset = () => {
++    clearTimeout(idleTimer);
++    idleTimer = setTimeout(() => {
++      if (isLoggedIn()) logout();
++    }, IDLE_LIMIT_MS);
++  };
++  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(ev =>
++    window.addEventListener(ev, reset, { passive: true })
++  );
++  window._idleReset = reset;
++  reset();
++}
++
++function stopIdleWatch() {
++  clearTimeout(idleTimer);
++  if (window._idleReset) {
++    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(ev =>
++      window.removeEventListener(ev, window._idleReset)
++    );
++    window._idleReset = null;
++  }
++}
++
++// Si el token expira o se invalida en cualquier momento, vuelve al login
++pb.authStore.onChange(() => {
++  if (!pb.authStore.isValid && document.getElementById('app')) renderLogin();
++});
++
++// Expose to global scope for inline HTML handlers
++window.isLoggedIn = isLoggedIn;
++window.renderLogin = renderLogin;
++window.handleLogin = handleLogin;
++window.logout = logout;
++window.startIdleWatch = startIdleWatch;
+diff --git a/js/store.js b/js/store.js
+index f787c7c..132515e 100644
+--- a/js/store.js
++++ b/js/store.js
+@@ -21,7 +21,53 @@ function money(n, cur) {
+ }
+ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+ 
+-const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
++/* Auth store propio, respaldado en sessionStorage en vez de localStorage.
++   Así, la sesión vive solo mientras la pestaña/ventana del navegador esté
++   abierta: al cerrarla, se pierde el token y hay que iniciar sesión de
++   nuevo. Un refresh (F5) dentro de la misma pestaña sí mantiene la sesión
++   — eso es normal y esperado, no un fallo de seguridad. */
++class SessionAuthStore {
++  constructor(key) {
++    this.key = key || 'mantente_auth';
++    this._listeners = [];
++    this.token = '';
++    this.record = null;
++    try {
++      const raw = sessionStorage.getItem(this.key);
++      if (raw) {
++        const d = JSON.parse(raw);
++        this.token = d.token || '';
++        this.record = d.record || null;
++      }
++    } catch (e) { /* storage no disponible: sesión solo en memoria */ }
++  }
++  get isValid() {
++    if (!this.token) return false;
++    try {
++      const payload = JSON.parse(atob(this.token.split('.')[1]));
++      return payload.exp ? (payload.exp * 1000 > Date.now()) : true;
++    } catch (e) { return false; }
++  }
++  save(token, record) {
++    this.token = token || '';
++    this.record = record || null;
++    try { sessionStorage.setItem(this.key, JSON.stringify({ token: this.token, record: this.record })); } catch (e) { }
++    this._trigger();
++  }
++  clear() {
++    this.token = '';
++    this.record = null;
++    try { sessionStorage.removeItem(this.key); } catch (e) { }
++    this._trigger();
++  }
++  onChange(cb) {
++    this._listeners.push(cb);
++    return () => { this._listeners = this._listeners.filter(l => l !== cb); };
++  }
++  _trigger() { this._listeners.forEach(l => { try { l(this.token, this.record); } catch (e) { } }); }
++}
++
++const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev', new SessionAuthStore());
+ 
+ 
+ // Campos que se guardan como texto JSON en PocketBase

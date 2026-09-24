@@ -1,0 +1,227 @@
+diff --git a/js/config.js b/js/config.js
+index ef9e96a..245c7ff 100644
+--- a/js/config.js
++++ b/js/config.js
+@@ -36,6 +36,15 @@ function renderConfig(el) {
+     ${listEditor('vendors', c.vendors)}
+   </div>
+ </div>
++
++<div class="grid grid-2" style="margin-top:16px;">
++  <div class="card card-pad">
++    <h3 style="margin-top:0;font-size:15px;">Empresa (multiempresa)</h3>
++    <div class="hint" style="margin-bottom:10px;">Tu usuario: <b>${esc((pb.authStore.record && (pb.authStore.record.email || pb.authStore.record.username)) || '—')}</b><br>companyId asignado: <b>${esc((pb.authStore.record && pb.authStore.record.companyId) || 'Sin asignar — pídele a tu administrador que lo configure en PocketBase')}</b></div>
++    <button class="btn btn-primary" onclick="guardedRun(this,async()=>{await syncAllWithCompany(); toast('Datos sincronizados con tu empresa ✓');})">Sincronizar mis datos con mi empresa</button>
++    <div class="hint" style="margin-top:8px;">Úsalo una sola vez después de que te asignen un companyId, para que tus registros existentes queden ligados a tu empresa.</div>
++  </div>
++</div>
+   `;
+ }
+ 
+diff --git a/js/store.js b/js/store.js
+index f787c7c..4fb7fbd 100644
+--- a/js/store.js
++++ b/js/store.js
+@@ -21,7 +21,53 @@ function money(n, cur) {
+ }
+ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+ 
+-const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
++/* Auth store propio, respaldado en sessionStorage en vez de localStorage.
++   Así, la sesión vive solo mientras la pestaña/ventana del navegador esté
++   abierta: al cerrarla, se pierde el token y hay que iniciar sesión de
++   nuevo. Un refresh (F5) dentro de la misma pestaña sí mantiene la sesión
++   — eso es normal y esperado, no un fallo de seguridad. */
++class SessionAuthStore {
++  constructor(key) {
++    this.key = key || 'mantente_auth';
++    this._listeners = [];
++    this.token = '';
++    this.record = null;
++    try {
++      const raw = sessionStorage.getItem(this.key);
++      if (raw) {
++        const d = JSON.parse(raw);
++        this.token = d.token || '';
++        this.record = d.record || null;
++      }
++    } catch (e) { /* storage no disponible: sesión solo en memoria */ }
++  }
++  get isValid() {
++    if (!this.token) return false;
++    try {
++      const payload = JSON.parse(atob(this.token.split('.')[1]));
++      return payload.exp ? (payload.exp * 1000 > Date.now()) : true;
++    } catch (e) { return false; }
++  }
++  save(token, record) {
++    this.token = token || '';
++    this.record = record || null;
++    try { sessionStorage.setItem(this.key, JSON.stringify({ token: this.token, record: this.record })); } catch (e) { }
++    this._trigger();
++  }
++  clear() {
++    this.token = '';
++    this.record = null;
++    try { sessionStorage.removeItem(this.key); } catch (e) { }
++    this._trigger();
++  }
++  onChange(cb) {
++    this._listeners.push(cb);
++    return () => { this._listeners = this._listeners.filter(l => l !== cb); };
++  }
++  _trigger() { this._listeners.forEach(l => { try { l(this.token, this.record); } catch (e) { } }); }
++}
++
++const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev', new SessionAuthStore());
+ 
+ 
+ // Campos que se guardan como texto JSON en PocketBase
+@@ -77,11 +123,13 @@ async function loadDB() {
+ 
+ async function save(key) {
+   try {
++    const companyId = (pb.authStore.record && pb.authStore.record.companyId) || '';
+     if (key === 'config') {
+       const existing = await pb.collection(key).getFullList();
+       const data = serializeRecord(key, DB.config);
+       data.cop = DB.config.exchangeRateCop || 0;
+       delete data.exchangeRateCop;
++      data.companyId = companyId;
+       if (existing.length > 0) {
+         await pb.collection(key).update(existing[0].id, data);
+       } else {
+@@ -96,6 +144,7 @@ async function save(key) {
+     const ops = [];
+     for (const item of DB[key]) {
+       const data = serializeRecord(key, item);
++      data.companyId = companyId;
+       if (pbMap.has(item.id)) {
+         ops.push(pb.collection(key).update(item.id, data));
+         pbMap.delete(item.id);
+@@ -115,6 +164,16 @@ async function save(key) {
+   } catch (e) { console.error(e); toast('Error guardando datos', true); }
+ }
+ 
++/* Backfill de un solo click: reescribe TODOS tus registros existentes
++   con el companyId del usuario actual. Úsalo una sola vez, justo después
++   de crear tu empresa y asignarte su companyId, para "adoptar" los datos
++   que ya tenías antes de activar multiempresa. */
++async function syncAllWithCompany() {
++  for (const k of STORE_KEYS) {
++    await save(k);
++  }
++}
++
+ /* Evita doble envío: deshabilita el botón mientras la acción está en curso
+    y lo reactiva siempre al terminar (éxito o error). */
+ async function guardedRun(btn, fn) {
+@@ -237,6 +296,7 @@ window.PRICE_TIERS = PRICE_TIERS;
+ window.pb = pb;
+ window.salesOnDate = salesOnDate;
+ window.save = save;
++window.syncAllWithCompany = syncAllWithCompany;
+ window.serializeRecord = serializeRecord;
+ window.smartMatch = smartMatch;
+ window.toast = toast;
+diff --git a/pb_migrations/1785806800_add_companies_multitenancy.js b/pb_migrations/1785806800_add_companies_multitenancy.js
+new file mode 100644
+index 0000000..5da76fb
+--- /dev/null
++++ b/pb_migrations/1785806800_add_companies_multitenancy.js
+@@ -0,0 +1,95 @@
++/// <reference path="../pb_data/types.d.ts" />
++migrate((app) => {
++  // 1. Nueva colección "companies" — solo administrable por ti (superusuario)
++  //    desde el panel admin de PocketBase. La app nunca la lista ni la
++  //    escribe directamente.
++  const companies = new Collection({
++    "createRule": null,
++    "deleteRule": null,
++    "fields": [
++      {
++        "autogeneratePattern": "[a-z0-9]{15}",
++        "help": "",
++        "hidden": false,
++        "id": "text_companies_pk",
++        "max": 15,
++        "min": 15,
++        "name": "id",
++        "pattern": "^[a-z0-9]+$",
++        "presentable": false,
++        "primaryKey": true,
++        "required": true,
++        "system": true,
++        "type": "text"
++      },
++      {
++        "autogeneratePattern": "",
++        "help": "",
++        "hidden": false,
++        "id": "text_companies_name",
++        "max": 0,
++        "min": 0,
++        "name": "name",
++        "pattern": "",
++        "presentable": true,
++        "primaryKey": false,
++        "required": true,
++        "system": false,
++        "type": "text"
++      }
++    ],
++    "id": "pbc_9000000001",
++    "indexes": [],
++    "listRule": null,
++    "name": "companies",
++    "system": false,
++    "type": "base",
++    "updateRule": null,
++    "viewRule": null
++  });
++  app.save(companies);
++
++  // 2. Campo companyId en "users" y en las 11 colecciones de datos.
++  //    Sin "required" a nivel de esquema a propósito: la separación real
++  //    la va a hacer la regla de acceso en la fase 2, una vez que hayas
++  //    asignado companyId a tus datos existentes.
++  const ids = [
++    "users",
++    "pbc_3818476082", "pbc_4092854851", "pbc_1394421508", "pbc_2442875294",
++    "pbc_1691921218", "pbc_1145533974", "pbc_3461338982", "pbc_2156756805",
++    "pbc_2697449135", "pbc_863811952", "pbc_3355664324",
++  ];
++  for (const id of ids) {
++    const collection = app.findCollectionByNameOrId(id);
++    collection.fields.add(new Field({
++      "autogeneratePattern": "",
++      "hidden": false,
++      "id": "text_companyid",
++      "max": 0,
++      "min": 0,
++      "name": "companyId",
++      "pattern": "",
++      "presentable": false,
++      "primaryKey": false,
++      "required": false,
++      "system": false,
++      "type": "text"
++    }));
++    app.save(collection);
++  }
++}, (app) => {
++  const ids = [
++    "users",
++    "pbc_3818476082", "pbc_4092854851", "pbc_1394421508", "pbc_2442875294",
++    "pbc_1691921218", "pbc_1145533974", "pbc_3461338982", "pbc_2156756805",
++    "pbc_2697449135", "pbc_863811952", "pbc_3355664324",
++  ];
++  for (const id of ids) {
++    const collection = app.findCollectionByNameOrId(id);
++    collection.fields.removeById("text_companyid");
++    app.save(collection);
++  }
++
++  const companies = app.findCollectionByNameOrId("pbc_9000000001");
++  app.delete(companies);
++})

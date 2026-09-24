@@ -1,0 +1,86 @@
+[2merror.message=[0m"failed to connect to machine: gave up after 15 attempts (in 8.493737339s)" [2m2026-09-24T22:22:43Z[0m proxy[080d01dc2d6948] [32mfra[0m [[31merror[0m]
+[2merror.message=[0m"could not find a good candidate within 40 attempts at load balancing" [2m2026-09-24T22:22:43Z[0m proxy [32miad[0m [[31merror[0m][2mrequest.url=[0m"/api/health" 
+[2m2026-09-24T22:34:48Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Pulling container image registry.fly.io/fragrant-sandbar-3808@sha256:543650db1f980cbcc4ee7aa235a930157b0ed8fe80de1e05479136c7c81cf64b
+[2m2026-09-24T22:34:51Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Successfully prepared image registry.fly.io/fragrant-sandbar-3808@sha256:543650db1f980cbcc4ee7aa235a930157b0ed8fe80de1e05479136c7c81cf64b (2.764057343s)
+[2m2026-09-24T22:34:51Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Setting up volume 'pb_data'
+[2m2026-09-24T22:34:51Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Opening encrypted volume
+[2m2026-09-24T22:34:52Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Configuring firecracker
+[2m2026-09-24T22:35:03Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Starting machine
+[2m2026-09-24T22:35:03Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:35:03.772986075 [01M3ARX793C6MZFN5M4F7M230K:main] Running Firecracker v1.14.4
+[2m2026-09-24T22:35:03Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:35:03.773189621 [01M3ARX793C6MZFN5M4F7M230K:main] Listening on API socket ("/fc.sock").
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting init (commit: 6172d83)...
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Checking filesystem on /pb/pb_data
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]/dev/vdc: clean, 16/64512 files, 9339/258048 blocks
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Mounting /dev/vdc at /pb/pb_data w/ uid: 0, gid: 0 and chmod 0755
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Resized /pb/pb_data to 1056964608 bytes
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Preparing to run: `/pb/pocketbase serve --http=0.0.0.0:8080 --origins=https://mantentev2.vercel.app,https://fragrant-sandbar-3808.fly.dev` as root
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m [fly api proxy] listening at /.fly/api
+[2m2026-09-24T22:35:04Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Machine started in 1.218s
+[2m2026-09-24T22:35:04Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]machine started in 1.306519038s
+[2m2026-09-24T22:35:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:35:04 INFO SSH listening listen_address=[fdaa:a7:dd24:a7b:51:fe8f:1f24:2]:22
+[2m2026-09-24T22:35:05Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:35:05 Server started at http://0.0.0.0:8080
+[2m2026-09-24T22:35:05Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]├─ REST API:  http://0.0.0.0:8080/api/
+[2m2026-09-24T22:35:05Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]└─ Dashboard: http://0.0.0.0:8080/_/
+[2m2026-09-24T22:35:05Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]machine became reachable in 384.712227ms
+[2m2026-09-24T22:43:15Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]App fragrant-sandbar-3808 has excess capacity, autostopping machine 080d01dc2d6948. 0 out of 1 machines left running (region=fra, process group=app)
+[2m2026-09-24T22:43:15Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Sending signal SIGINT to main child process w/ PID 644
+[2m2026-09-24T22:43:15Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Main child exited normally with code: 0
+[2m2026-09-24T22:43:15Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting clean up.
+[2m2026-09-24T22:43:15Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Umounting /dev/vdc from /pb/pb_data
+[2m2026-09-24T22:43:15Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][  491.532325] reboot: Restarting system
+[2m2026-09-24T22:45:09Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Starting machine
+[2m2026-09-24T22:45:09Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:45:09.484907540 [01M3ARX793C6MZFN5M4F7M230K:main] Running Firecracker v1.14.4
+[2m2026-09-24T22:45:09Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:45:09.485094267 [01M3ARX793C6MZFN5M4F7M230K:main] Listening on API socket ("/fc.sock").
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting init (commit: 6172d83)...
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Checking filesystem on /pb/pb_data
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]/dev/vdc: clean, 16/64512 files, 10223/258048 blocks
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Mounting /dev/vdc at /pb/pb_data w/ uid: 0, gid: 0 and chmod 0755
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Resized /pb/pb_data to 1056964608 bytes
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Preparing to run: `/pb/pocketbase serve --http=0.0.0.0:8080 --origins=https://mantentev2.vercel.app,https://fragrant-sandbar-3808.fly.dev` as root
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m [fly api proxy] listening at /.fly/api
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:45:10 INFO SSH listening listen_address=[fdaa:a7:dd24:a7b:51:fe8f:1f24:2]:22
+[2m2026-09-24T22:45:10Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Machine started in 1.244s
+[2m2026-09-24T22:45:10Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]machine started in 1.410839892s
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:45:10 Server started at http://0.0.0.0:8080
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]├─ REST API:  http://0.0.0.0:8080/api/
+[2m2026-09-24T22:45:10Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]└─ Dashboard: http://0.0.0.0:8080/_/
+[2m2026-09-24T22:45:10Z[0m proxy[080d01dc2d6948] [32mfra[0m [[34minfo[0m]machine became reachable in 21.792718ms
+[2m2026-09-24T22:48:59Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Pulling container image registry.fly.io/fragrant-sandbar-3808@sha256:10c449468e198f76806fb4bb904b68d769a01a9df399b9eda890684fe77c9005
+[2m2026-09-24T22:49:01Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Successfully prepared image registry.fly.io/fragrant-sandbar-3808@sha256:10c449468e198f76806fb4bb904b68d769a01a9df399b9eda890684fe77c9005 (1.330517384s)
+[2m2026-09-24T22:49:01Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Setting up volume 'pb_data'
+[2m2026-09-24T22:49:01Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Opening encrypted volume
+[2m2026-09-24T22:49:01Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Configuring firecracker
+[2m2026-09-24T22:49:01Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Sending signal SIGINT to main child process w/ PID 645
+[2m2026-09-24T22:49:02Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Main child exited normally with code: 0
+[2m2026-09-24T22:49:02Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting clean up.
+[2m2026-09-24T22:49:02Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Umounting /dev/vdc from /pb/pb_data
+[2m2026-09-24T22:49:02Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][  233.191771] reboot: Restarting system
+[2m2026-09-24T22:49:03Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:49:03.644560323 [01M3ASQ6JAFAJAX0Q68QPB2JHW:main] Running Firecracker v1.14.4
+[2m2026-09-24T22:49:03Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026-09-24T22:49:03.644725720 [01M3ASQ6JAFAJAX0Q68QPB2JHW:main] Listening on API socket ("/fc.sock").
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting init (commit: 6172d83)...
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Checking filesystem on /pb/pb_data
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]/dev/vdc: clean, 16/64512 files, 10230/258048 blocks
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Mounting /dev/vdc at /pb/pb_data w/ uid: 0, gid: 0 and chmod 0755
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Resized /pb/pb_data to 1056964608 bytes
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Preparing to run: `/pb/pocketbase serve --http=0.0.0.0:8080 --origins=https://mantentev2.vercel.app,https://fragrant-sandbar-3808.fly.dev` as root
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m [fly api proxy] listening at /.fly/api
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:49:04 INFO SSH listening listen_address=[fdaa:a7:dd24:a7b:51:fe8f:1f24:2]:22
+[2m2026-09-24T22:49:04Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Machine created and started in 4.84s
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:49:04 Server started at http://0.0.0.0:8080
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]├─ REST API:  http://0.0.0.0:8080/api/
+[2m2026-09-24T22:49:04Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]└─ Dashboard: http://0.0.0.0:8080/_/
+[2m2026-09-24T22:51:51Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:51:51 INFO New SSH session email=adrcproducciones@gmail.com verified=true
+[2m2026-09-24T22:52:22Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:52:22 INFO New SSH session email=adrcproducciones@gmail.com verified=true
+[2m2026-09-24T22:52:46Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:52:46 INFO New SSH session email=adrcproducciones@gmail.com verified=true
+[2m2026-09-24T22:52:48Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:52:48 INFO New SSH session email=adrcproducciones@gmail.com verified=true
+[2m2026-09-24T22:53:49Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m]2026/09/24 22:53:49 INFO New SSH session email=adrcproducciones@gmail.com verified=true
+[2m2026-09-24T22:54:37Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Pulling container image registry.fly.io/fragrant-sandbar-3808@sha256:7653ff68f6d09a83e2902ab774221a78001484b3a84bfe11876ee44e0ac377cf
+[2m2026-09-24T22:54:37Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Successfully prepared image registry.fly.io/fragrant-sandbar-3808@sha256:7653ff68f6d09a83e2902ab774221a78001484b3a84bfe11876ee44e0ac377cf (290.517878ms)
+[2m2026-09-24T22:54:38Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Setting up volume 'pb_data'
+[2m2026-09-24T22:54:38Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Opening encrypted volume
+[2m2026-09-24T22:54:38Z[0m runner[080d01dc2d6948] [32mfra[0m [[34minfo[0m]Configuring firecracker
+[2m2026-09-24T22:54:38Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Sending signal SIGINT to main child process w/ PID 644
+[2m2026-09-24T22:54:39Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Main child exited normally with code: 0
+[2m2026-09-24T22:54:39Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Starting clean up.
+[2m2026-09-24T22:54:39Z[0m app[080d01dc2d6948] [32mfra[0m [[34minfo[0m][32m INFO[0m Umounting /dev/vdc from /pb/pb_data
+[

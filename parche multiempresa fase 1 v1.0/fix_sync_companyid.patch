@@ -1,0 +1,117 @@
+diff --git a/js/store.js b/js/store.js
+index f787c7c..deb6178 100644
+--- a/js/store.js
++++ b/js/store.js
+@@ -21,7 +21,53 @@ function money(n, cur) {
+ }
+ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+ 
+-const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev');
++/* Auth store propio, respaldado en sessionStorage en vez de localStorage.
++   Así, la sesión vive solo mientras la pestaña/ventana del navegador esté
++   abierta: al cerrarla, se pierde el token y hay que iniciar sesión de
++   nuevo. Un refresh (F5) dentro de la misma pestaña sí mantiene la sesión
++   — eso es normal y esperado, no un fallo de seguridad. */
++class SessionAuthStore {
++  constructor(key) {
++    this.key = key || 'mantente_auth';
++    this._listeners = [];
++    this.token = '';
++    this.record = null;
++    try {
++      const raw = sessionStorage.getItem(this.key);
++      if (raw) {
++        const d = JSON.parse(raw);
++        this.token = d.token || '';
++        this.record = d.record || null;
++      }
++    } catch (e) { /* storage no disponible: sesión solo en memoria */ }
++  }
++  get isValid() {
++    if (!this.token) return false;
++    try {
++      const payload = JSON.parse(atob(this.token.split('.')[1]));
++      return payload.exp ? (payload.exp * 1000 > Date.now()) : true;
++    } catch (e) { return false; }
++  }
++  save(token, record) {
++    this.token = token || '';
++    this.record = record || null;
++    try { sessionStorage.setItem(this.key, JSON.stringify({ token: this.token, record: this.record })); } catch (e) { }
++    this._trigger();
++  }
++  clear() {
++    this.token = '';
++    this.record = null;
++    try { sessionStorage.removeItem(this.key); } catch (e) { }
++    this._trigger();
++  }
++  onChange(cb) {
++    this._listeners.push(cb);
++    return () => { this._listeners = this._listeners.filter(l => l !== cb); };
++  }
++  _trigger() { this._listeners.forEach(l => { try { l(this.token, this.record); } catch (e) { } }); }
++}
++
++const pb = new PocketBase('https://fragrant-sandbar-3808.fly.dev', new SessionAuthStore());
+ 
+ 
+ // Campos que se guardan como texto JSON en PocketBase
+@@ -77,11 +123,13 @@ async function loadDB() {
+ 
+ async function save(key) {
+   try {
++    const companyId = (pb.authStore.record && pb.authStore.record.companyId) || '';
+     if (key === 'config') {
+       const existing = await pb.collection(key).getFullList();
+       const data = serializeRecord(key, DB.config);
+       data.cop = DB.config.exchangeRateCop || 0;
+       delete data.exchangeRateCop;
++      data.companyId = companyId;
+       if (existing.length > 0) {
+         await pb.collection(key).update(existing[0].id, data);
+       } else {
+@@ -96,6 +144,7 @@ async function save(key) {
+     const ops = [];
+     for (const item of DB[key]) {
+       const data = serializeRecord(key, item);
++      data.companyId = companyId;
+       if (pbMap.has(item.id)) {
+         ops.push(pb.collection(key).update(item.id, data));
+         pbMap.delete(item.id);
+@@ -115,6 +164,27 @@ async function save(key) {
+   } catch (e) { console.error(e); toast('Error guardando datos', true); }
+ }
+ 
++/* Backfill de un solo click: reescribe TODOS tus registros existentes
++   con el companyId del usuario actual. Úsalo una sola vez, justo después
++   de crear tu empresa y asignarte su companyId, para "adoptar" los datos
++   que ya tenías antes de activar multiempresa.
++   Antes de nada, refresca los datos del usuario desde PocketBase — si le
++   asignaste el companyId desde el Admin UI DESPUÉS de haber iniciado
++   sesión en la app, la sesión abierta todavía tenía la copia vieja (sin
++   companyId) guardada en memoria, y sin este refresh el backfill escribiría
++   companyId vacío en todo sin dar ningún error. */
++async function syncAllWithCompany() {
++  const fresh = await pb.collection('users').authRefresh();
++  const companyId = fresh?.record?.companyId || '';
++  if (!companyId) {
++    toast('Tu usuario todavía no tiene companyId asignado en PocketBase', true);
++    return;
++  }
++  for (const k of STORE_KEYS) {
++    await save(k);
++  }
++}
++
+ /* Evita doble envío: deshabilita el botón mientras la acción está en curso
+    y lo reactiva siempre al terminar (éxito o error). */
+ async function guardedRun(btn, fn) {
+@@ -237,6 +307,7 @@ window.PRICE_TIERS = PRICE_TIERS;
+ window.pb = pb;
+ window.salesOnDate = salesOnDate;
+ window.save = save;
++window.syncAllWithCompany = syncAllWithCompany;
+ window.serializeRecord = serializeRecord;
+ window.smartMatch = smartMatch;
+ window.toast = toast;
