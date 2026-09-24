@@ -14,6 +14,8 @@ RUN unzip /tmp/pb.zip -d /pb/
 COPY pb_migrations/ /pb/pb_migrations/
 COPY pb_hooks/ /pb/pb_hooks/
 
+WORKDIR /pb
+
 EXPOSE 8080
 
 # Iniciar PocketBase: permite CORS desde el frontend en Vercel
