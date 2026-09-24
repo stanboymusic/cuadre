@@ -33,18 +33,8 @@ function registrarEvento(app, envioId, estado, nota, usuario) {
   app.save(r)
 }
 
-/** Devuelve la Central de la empresa del usuario autenticado. Lanza error si no existe.
- *  Acepta opcionalmente la app transaccional (tx) y el companyId explícito.
- *  Si no hay companyId (sistema de una sola empresa), devuelve cualquier central. */
-function ubicacionCentral(app, companyId) {
-  if (companyId) {
-    return app.findFirstRecordByFilter(
-      "ubicaciones",
-      "tipo = 'central' && companyId = {:c}",
-      { c: companyId }
-    )
-  }
-  // Fallback: empresa única / sin aislamiento todavía configurado
+/** Devuelve la Central global. Lanza error si no existe. */
+function ubicacionCentral(app) {
   return app.findFirstRecordByFilter("ubicaciones", "tipo = 'central'")
 }
 

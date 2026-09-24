@@ -50,14 +50,9 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
   const u   = require(`${__hooks}/envios_utils.js`)
   const id  = e.request.pathValue("id")
   const uid = e.auth ? e.auth.id : ""
-  const cid = e.auth ? e.auth.getString("companyId") : ""  // Punto 1: empresa del usuario
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
-
-    // Punto 1: validar que el envío es de la misma empresa
-    if (cid && envio.getString("companyId") !== cid)
-      throw new ForbiddenError("No tienes acceso a este envío")
 
     if (envio.getString("estado") !== "preparando") {
       throw new BadRequestError("Solo se puede despachar un envío en preparación")
@@ -66,18 +61,13 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
     const items = tx.findRecordsByFilter("envio_items", "envio = {:id}", "", 0, 0, { id })
     if (!items.length) throw new BadRequestError("El envío no tiene productos")
 
-    // Punto 1: Central de la empresa del usuario (no la de otra empresa)
-    const central = u.ubicacionCentral(tx, cid)
+    const central = u.ubicacionCentral(tx)
 
     for (const it of items) {
       // Nombres de campos reales: "products", products.stock, products.cost, products.name
       const prod  = tx.findRecordById("products", it.getString("producto"))
       const qty   = it.getFloat("cantidad_enviada")
       const disp  = prod.getFloat("stock")
-
-      // Punto 1: validar que el producto es de la empresa
-      if (cid && prod.getString("companyId") !== cid)
-        throw new ForbiddenError("Producto fuera de tu empresa")
 
       if (disp < qty) {
         throw new BadRequestError(
@@ -111,14 +101,6 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
       eg.set("method",    "")
       eg.set("date",      new DateTime().string().slice(0, 10)) // YYYY-MM-DD
       eg.set("ts",        Date.now())
-      // Propagar companyId del usuario que despacha (necesario para multitenancy)
-      if (uid) {
-        try {
-          const user = tx.findRecordById("users", uid)
-          const cid  = user.getString("companyId")
-          if (cid) eg.set("companyId", cid)
-        } catch (_) {}
-      }
       tx.save(eg)
       envio.set("egreso", eg.id)
     }
@@ -139,16 +121,11 @@ routerAdd("POST", "/api/cuadre/envios/{id}/recibir", (e) => {
   const u   = require(`${__hooks}/envios_utils.js`)
   const id  = e.request.pathValue("id")
   const uid = e.auth ? e.auth.id : ""
-  const cid = e.auth ? e.auth.getString("companyId") : ""  // Punto 1
   const body = new DynamicModel({ items: [], nota: "" })
   e.bindBody(body)
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
-
-    // Punto 1: validar empresa
-    if (cid && envio.getString("companyId") !== cid)
-      throw new ForbiddenError("No tienes acceso a este envío")
 
     if (envio.getString("estado") !== "en_transito") {
       throw new BadRequestError("El envío no está en tránsito")
@@ -220,23 +197,17 @@ routerAdd("POST", "/api/cuadre/envios/{id}/cancelar", (e) => {
   const u   = require(`${__hooks}/envios_utils.js`)
   const id  = e.request.pathValue("id")
   const uid = e.auth ? e.auth.id : ""
-  const cid = e.auth ? e.auth.getString("companyId") : ""  // Punto 1
 
   $app.runInTransaction((tx) => {
     const envio  = tx.findRecordById("envios", id)
     const estado = envio.getString("estado")
-
-    // Punto 1: validar empresa
-    if (cid && envio.getString("companyId") !== cid)
-      throw new ForbiddenError("No tienes acceso a este envío")
 
     if (estado !== "preparando" && estado !== "en_transito") {
       throw new BadRequestError("Este envío ya no se puede cancelar")
     }
 
     if (estado === "en_transito") {
-      // Punto 1: Central de la empresa
-      const central = u.ubicacionCentral(tx, cid)
+      const central = u.ubicacionCentral(tx)
       const items   = tx.findRecordsByFilter("envio_items", "envio = {:id}", "", 0, 0, { id })
 
       for (const it of items) {

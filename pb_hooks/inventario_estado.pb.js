@@ -25,8 +25,6 @@ routerAdd("POST", "/api/cuadre/inventario/ajuste", (e) => {
   $app.runInTransaction((tx) => {
     const ub   = tx.findRecordById("ubicaciones", b.ubicacion)
     const prod = tx.findRecordById("products",    b.producto)
-    inv.exigirEmpresa(e, ub)
-    inv.exigirEmpresa(e, prod)
     inv.moverStock(tx, ub, b.producto, delta)
     u.registrarMov(tx, {
       producto:  b.producto,
@@ -55,19 +53,15 @@ routerAdd("POST", "/api/cuadre/inventario/devolucion", (e) => {
 
   $app.runInTransaction((tx) => {
     const ub = tx.findRecordById("ubicaciones", b.ubicacion)
-    inv.exigirEmpresa(e, ub)
     if (ub.getString("tipo") === "central") throw new BadRequestError("Elige un estado como origen, no la Central")
 
-    // Central de LA EMPRESA del usuario (no la de otra)
-    const empId  = inv.empresaDe(e) || ub.getString(inv.EMPRESA)
-    const central = inv.centralDe(tx, empId)
+    const central = u.ubicacionCentral(tx)
     const uid    = e.auth ? e.auth.id : ""
 
     for (const it of b.items) {
       const qty  = Number(it.cantidad)
       if (!qty || qty <= 0) throw new BadRequestError("Cantidad inválida")
       const prod = tx.findRecordById("products", it.producto)
-      inv.exigirEmpresa(e, prod)
       const costo = prod.getFloat("cost")
       inv.moverStock(tx, ub,      it.producto, -qty)
       inv.moverStock(tx, central, it.producto,  qty)
@@ -91,12 +85,11 @@ routerAdd("POST", "/api/cuadre/inventario/apertura", (e) => {
   if (!b.items || !b.items.length) throw new BadRequestError("No hay productos")
 
   $app.runInTransaction((tx) => {
-    const central = inv.centralDe(tx, inv.empresaDe(e))
+    const central = u.ubicacionCentral(tx)
     for (const it of b.items) {
       const qty  = Number(it.cantidad)
       if (!qty || qty <= 0) throw new BadRequestError("Cantidad inválida")
       const prod = tx.findRecordById("products", it.producto)
-      inv.exigirEmpresa(e, prod)
       inv.moverStock(tx, central, it.producto, qty)
       u.registrarMov(tx, {
         producto:  it.producto,
@@ -128,7 +121,6 @@ routerAdd("POST", "/api/cuadre/envios/{id}/resolver-incidencia", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
-    inv.exigirEmpresa(e, envio)
     if (envio.getString("estado") !== "recibido_parcial") {
       throw new BadRequestError("Este envío no tiene incidencia abierta")
     }
