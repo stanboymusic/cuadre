@@ -32,14 +32,8 @@ migrate((app) => {
   for (const name of collections) {
     const col = app.findCollectionByNameOrId(name);
 
-    // Idempotente: no duplicar si ya existe
-    let tieneField = false;
-    try {
-      col.fields.getByName("companyId");
-      tieneField = true;
-    } catch (_) {
-      tieneField = false;
-    }
+    // getByName() retorna null cuando no existe (no lanza excepción en PB 0.39)
+    const tieneField = !!(col.fields.getByName("companyId"));
 
     if (!tieneField) {
       col.fields.add(new Field({

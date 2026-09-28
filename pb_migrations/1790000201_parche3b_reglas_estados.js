@@ -33,11 +33,8 @@ migrate((app) => {
     }
 
     // Verificar que el campo companyId existe antes de aplicar la regla
-    let tieneField = false;
-    try {
-      col.fields.getByName("companyId");
-      tieneField = true;
-    } catch (_) {}
+    // getByName() retorna null cuando no existe (no lanza excepción)
+    const tieneField = !!(col.fields.getByName("companyId"));
 
     if (!tieneField) {
       console.log("[parche3b] ALERTA: " + cfg.name + " no tiene companyId — regla omitida");
