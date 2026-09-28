@@ -9,6 +9,7 @@ onRecordCreateRequest((e) => {
   const ub = e.app.findRecordById("ubicaciones", ubId);
   
   const companyId = e.auth ? e.auth.getString("companyId") : "";
+  if (!companyId) throw new ForbiddenError("No autorizado");
   
   // Vendido total
   const tot = arrayOf(new DynamicModel({ vendido: 0.0 }));

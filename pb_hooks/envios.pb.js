@@ -53,7 +53,8 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
-    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+    const cid = e.auth.getString("companyId");
+    if (!cid || envio.getString("companyId") !== cid) {
       throw new ForbiddenError("No autorizado")
     }
 
@@ -129,7 +130,8 @@ routerAdd("POST", "/api/cuadre/envios/{id}/recibir", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
-    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+    const cid = e.auth.getString("companyId");
+    if (!cid || envio.getString("companyId") !== cid) {
       throw new ForbiddenError("No autorizado")
     }
 
@@ -206,7 +208,8 @@ routerAdd("POST", "/api/cuadre/envios/{id}/cancelar", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio  = tx.findRecordById("envios", id)
-    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+    const cid = e.auth.getString("companyId");
+    if (!cid || envio.getString("companyId") !== cid) {
       throw new ForbiddenError("No autorizado")
     }
     const estado = envio.getString("estado")
@@ -256,7 +259,8 @@ routerAdd("POST", "/api/cuadre/envios/{id}/nota", (e) => {
 
   // Verificar que el envío existe y pertenece a la empresa
   const envio = $app.findRecordById("envios", id)
-  if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+  const cid = e.auth.getString("companyId");
+  if (!cid || envio.getString("companyId") !== cid) {
     throw new ForbiddenError("No autorizado")
   }
   u.registrarEvento($app, id, "nota", body.nota.trim(), uid)

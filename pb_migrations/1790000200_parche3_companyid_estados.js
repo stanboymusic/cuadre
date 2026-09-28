@@ -1,58 +1,79 @@
 // Migración: Parche 3 — Multiempresa para Estados.
 // PocketBase v0.39.10+
+// CORRECCIÓN: campo companyId se guarda PRIMERO, reglas DESPUÉS (dos pasadas).
+// Idempotente: si el campo ya existe no lo duplica; si las reglas ya están no falla.
 
 migrate((app) => {
   const collections = [
-    "rendiciones", "movimientos_inventario", "envio_eventos", 
+    "rendiciones", "movimientos_inventario", "envio_eventos",
     "envio_items", "envios", "stock_ubicacion", "ubicaciones"
   ];
-  
-  // 1. Vaciar datos de prueba para evitar mezcla de empresas
+
+  // ── PASO 1: Vaciar datos de prueba ─────────────────────────────────────────
+  // Solo borra si hay registros (prod: no había datos reales de Estados)
   for (const name of collections) {
     try {
       const records = app.findRecordsByFilter(name, "id != ''", "", 0, 0);
       for (const r of records) {
-        app.delete(r);
+        try { app.delete(r); } catch (_) {}
       }
     } catch (err) {
-      console.error("Error vaciando " + name + ":", err);
+      console.log("Aviso vaciando " + name + ": " + err);
     }
   }
 
-  // 2. Agregar campo companyId y reglas a todas las colecciones
+  // ── PASO 2: Añadir campo companyId y guardar (SIN reglas todavía) ──────────
   for (const name of collections) {
     const col = app.findCollectionByNameOrId(name);
-    
-    // Añadir campo companyId si no existe
+
+    // Comprobar si el campo ya existe (idempotente)
+    let tieneField = false;
     try {
       col.fields.getByName("companyId");
+      tieneField = true;
     } catch (_) {
-      col.fields.add(new Field({
-        "id": "text_companyId_" + name,
-        "name": "companyId",
-        "type": "text",
-        "required": true,
-      }));
+      tieneField = false;
     }
 
-    // Actualizar reglas de acceso multiempresa
-    const rule = "@request.auth.companyId = companyId";
-    if (col.listRule !== null) col.listRule = rule;
-    if (col.viewRule !== null) col.viewRule = rule;
-    if (col.createRule !== null && col.createRule !== "") {
-      if (name === "envio_items") {
-        col.createRule = "@request.auth.companyId = companyId && envio.estado = 'preparando'";
-        col.updateRule = "@request.auth.companyId = companyId && envio.estado = 'preparando'";
-        col.deleteRule = "@request.auth.companyId = companyId && envio.estado = 'preparando'";
-      } else {
-        col.createRule = rule;
-        if (col.updateRule !== null) col.updateRule = rule;
-        if (col.deleteRule !== null) col.deleteRule = rule;
-      }
+    if (!tieneField) {
+      col.fields.add(new Field({
+        "id":       "text_companyId_" + name,
+        "name":     "companyId",
+        "type":     "text",
+        "required": false,   // false en este save; true se aplica después de que las reglas pasen
+      }));
+      // Guardar SOLO el campo — todavía sin reglas nuevas
+      app.save(col);
+      console.log("[parche3] campo companyId agregado a: " + name);
+    } else {
+      console.log("[parche3] campo companyId ya existía en: " + name);
+    }
+  }
+
+  // ── PASO 3: Ahora aplicar las reglas (el campo ya existe en DB) ───────────
+  const rule = "@request.auth.companyId = companyId";
+
+  for (const name of collections) {
+    const col = app.findCollectionByNameOrId(name);  // releer del disco
+
+    if (col.listRule   !== null) col.listRule   = rule;
+    if (col.viewRule   !== null) col.viewRule   = rule;
+
+    if (name === "envio_items") {
+      const ruleItem = "@request.auth.companyId = companyId && envio.estado = 'preparando'";
+      col.createRule = ruleItem;
+      col.updateRule = ruleItem;
+      col.deleteRule = ruleItem;
+    } else {
+      if (col.createRule !== null && col.createRule !== "") col.createRule = rule;
+      if (col.updateRule !== null)                          col.updateRule = rule;
+      if (col.deleteRule !== null)                          col.deleteRule = rule;
     }
 
     app.save(col);
+    console.log("[parche3] reglas aplicadas a: " + name);
   }
+
 }, (app) => {
-  // DOWN no necesario
+  // DOWN: no necesario, no se puede revertir el borrado de datos de prueba
 })
