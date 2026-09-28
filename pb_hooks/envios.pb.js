@@ -53,6 +53,9 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
+    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+      throw new ForbiddenError("No autorizado")
+    }
 
     if (envio.getString("estado") !== "preparando") {
       throw new BadRequestError("Solo se puede despachar un envío en preparación")
@@ -99,7 +102,7 @@ routerAdd("POST", "/api/cuadre/envios/{id}/despachar", (e) => {
       eg.set("note",      "Flete envío " + envio.getString("codigo"))
       eg.set("amountUsd", flete)
       eg.set("method",    "")
-      eg.set("date",      new DateTime().string().slice(0, 10)) // YYYY-MM-DD
+      eg.set("date",      new DateTime().String().slice(0, 10)) // YYYY-MM-DD
       eg.set("ts",        Date.now())
       tx.save(eg)
       envio.set("egreso", eg.id)
@@ -126,6 +129,9 @@ routerAdd("POST", "/api/cuadre/envios/{id}/recibir", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio = tx.findRecordById("envios", id)
+    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+      throw new ForbiddenError("No autorizado")
+    }
 
     if (envio.getString("estado") !== "en_transito") {
       throw new BadRequestError("El envío no está en tránsito")
@@ -200,6 +206,9 @@ routerAdd("POST", "/api/cuadre/envios/{id}/cancelar", (e) => {
 
   $app.runInTransaction((tx) => {
     const envio  = tx.findRecordById("envios", id)
+    if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+      throw new ForbiddenError("No autorizado")
+    }
     const estado = envio.getString("estado")
 
     if (estado !== "preparando" && estado !== "en_transito") {
@@ -245,8 +254,11 @@ routerAdd("POST", "/api/cuadre/envios/{id}/nota", (e) => {
     throw new BadRequestError("La nota no puede estar vacía")
   }
 
-  // Verificar que el envío existe
-  $app.findRecordById("envios", id)
+  // Verificar que el envío existe y pertenece a la empresa
+  const envio = $app.findRecordById("envios", id)
+  if (envio.getString("companyId") !== e.auth.getString("companyId")) {
+    throw new ForbiddenError("No autorizado")
+  }
   u.registrarEvento($app, id, "nota", body.nota.trim(), uid)
 
   return e.json(200, { ok: true })

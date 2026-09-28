@@ -43,11 +43,10 @@ async function applyDiscount(saleId, opts) {
   if (sale.discountUsd == null) {
     sale.discountUsd = 0;
     sale.discountNote = '';
+    // En ventas viejas subtotalUsd era "suma de items". Lo migramos al total real (Items + IVA)
+    sale.subtotalUsd = sale.totalUsd;
   }
-  // subtotalUsd ya existe en PB y en ventas nuevas lo llenamos bien.
-  // En ventas viejas puede que subtotalUsd === totalUsd (sin descuento aún).
-  // Lo usamos como base de descuento tal cual.
-  const subtotal = Number(sale.subtotalUsd) || Number(sale.totalUsd) || 0;
+  const subtotal = Number(sale.subtotalUsd) || 0;
 
   /* ── CALCULAR DESCUENTO ───────────────────────────────────────── */
   const discountUsd = calcDiscountAmount(subtotal, opts);
@@ -117,7 +116,11 @@ function openDiscountModal(saleId) {
   const sale = DB.sales.find(s => s.id === saleId);
   if (!sale) { toast('Venta no encontrada', true); return; }
 
-  const subtotal = Number(sale.subtotalUsd) || Number(sale.totalUsd) || 0;
+  if (sale.discountUsd == null) {
+    sale.subtotalUsd = sale.totalUsd;
+    sale.discountUsd = 0;
+  }
+  const subtotal = Number(sale.subtotalUsd) || 0;
   const currentDiscount = Number(sale.discountUsd) || 0;
   const currentTotal = Number(sale.totalUsd) || 0;
 
@@ -194,7 +197,11 @@ function updateDiscountPreview(saleId) {
   const sale = DB.sales.find(s => s.id === saleId);
   if (!sale) return;
 
-  const subtotal = Number(sale.subtotalUsd) || Number(sale.totalUsd) || 0;
+  if (sale.discountUsd == null) {
+    sale.subtotalUsd = sale.totalUsd;
+    sale.discountUsd = 0;
+  }
+  const subtotal = Number(sale.subtotalUsd) || 0;
   const discountUsd = calcDiscountAmount(subtotal, type === 'percent' ? { percent: rawVal } : { amount: rawVal });
   const newTotal = Math.max(0, subtotal - discountUsd);
 

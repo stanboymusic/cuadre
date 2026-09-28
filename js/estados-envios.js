@@ -182,7 +182,7 @@ window.openEnvioDetalle = async function(id) {
 
 function _renderEnvioDetalleInner(mid, data) {
   const { envio, items, eventos } = data;
-  const modalEl = document.querySelector('.modal-overlay:last-child .modal');
+  const modalEl = document.querySelector('.overlay:last-child .modal');
   if (!modalEl) return;
   
   const stateInfo = EstadosCalc.ESTADO_ENVIO[envio.estado] || { label: envio.estado, color: '#ccc' };
@@ -378,7 +378,7 @@ window.openRecibirEnvioModal = async function(id) {
   try {
     const data = await EstadosAPI.detalleEnvio(id);
     const { items, envio } = data;
-    const modalEl = document.querySelector('.modal-overlay:last-child .modal');
+    const modalEl = document.querySelector('.overlay:last-child .modal');
     if (!modalEl) return;
     
     let html = `

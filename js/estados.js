@@ -81,13 +81,13 @@ function renderEstados(el) {
 
 function _renderEstadosContent(el) {
   if (ESTADOS_TAB === 'ubicaciones') _renderUbicaciones(el);
-  else {
-    el.innerHTML = `
-<div class="card card-pad" style="color:var(--ink-soft);text-align:center;padding:48px 20px;">
-  <div style="font-size:32px;margin-bottom:12px;">🚧</div>
-  <b>Esta sección se activa en la siguiente fase del parche</b>
-  <div class="hint" style="margin-top:8px;">Completadas las fases anteriores, este módulo aparecerá aquí automáticamente.</div>
-</div>`;
+  else if (ESTADOS_TAB === 'envios') { if (typeof renderEstadosEnvios === 'function') renderEstadosEnvios(el); }
+  else if (ESTADOS_TAB === 'inventario') { if (typeof renderEstadosInventario === 'function') renderEstadosInventario(el); }
+  else if (ESTADOS_TAB === 'ventas_est') { if (typeof renderEstadosVentas === 'function') renderEstadosVentas(el); }
+  else if (ESTADOS_TAB === 'rendiciones') { if (typeof renderEstadosRendiciones === 'function') renderEstadosRendiciones(el); }
+  else if (ESTADOS_TAB === 'panel') {
+    // TODO: implement renderEstadosPanel in future phase
+    el.innerHTML = `<div class="empty"><div class="big">🗺️</div>Esta pestaña se implementará más adelante.</div>`;
   }
 }
 

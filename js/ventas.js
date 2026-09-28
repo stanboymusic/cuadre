@@ -1,6 +1,6 @@
 
 
-let CART = { items: [], clientId: '', vendor: (DB.config && DB.config.vendors && DB.config.vendors[0]) || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false };
+let CART = { items: [], clientId: '', vendor: (DB.config && DB.config.vendors && DB.config.vendors[0]) || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, ubicacion: '' };
 
 function renderVentas(el) {
   if (!CART.vendor) CART.vendor = DB.config.vendors[0] || '';
@@ -60,7 +60,7 @@ function renderVentas(el) {
     </div>
 
     <div class="section-title"><h2>Cliente y vendedor</h2></div>
-    <div class="card card-pad row-fields" style="grid-template-columns:1fr 1fr;">
+    <div class="card card-pad row-fields" style="grid-template-columns:1fr 1fr 1fr;">
       <div class="field" style="margin:0;">
         <label>Cliente</label>
         <select id="clientSel" onchange="CART.clientId=this.value; render()">
@@ -72,6 +72,13 @@ function renderVentas(el) {
         <label>Vendedor</label>
         <select id="vendorSel" onchange="CART.vendor=this.value">
           ${DB.config.vendors.map(v => `<option ${CART.vendor === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field" style="margin:0;">
+        <label>Punto de Venta</label>
+        <select id="ubicacionSel" onchange="CART.ubicacion=this.value; render()">
+          <option value="">Bodega Central</option>
+          ${(window._ubicaciones || []).filter(u => u.tipo === 'estado' && u.activa).map(u => `<option value="${u.id}" ${CART.ubicacion === u.id ? 'selected' : ''}>${esc(u.nombre)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -158,7 +165,7 @@ function cartSetItemTier(idx, tier) {
 }
 function cartSetQty(idx, val) { CART.items[idx].qty = Math.max(1, Number(val) || 1); render(); }
 function cartRemove(idx) { CART.items.splice(idx, 1); render(); }
-function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0 }; render(); }
+function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0, ubicacion: '' }; render(); }
 function cartAddPaymentRow() {
   const method = document.getElementById('payMethodSel').value;
   CART.payments.push({ method, amountUsd: 0 });
@@ -192,11 +199,24 @@ async function finalizeSale() {
   } else {
     changeUsd = paidUsd - totalUsd;
   }
+  const isEstado = !!CART.ubicacion;
+
   // stock check
   for (const it of CART.items) {
     if (it.kind === 'p') {
       const p = getProduct(it.refId);
-      if (!p || (p.stock || 0) < it.qty) { toast(`Existencia insuficiente de "${it.name}".`, true); return; }
+      if (!p) { toast(`Producto no encontrado "${it.name}".`, true); return; }
+      if (!isEstado) {
+        if ((p.stock || 0) < it.qty) { toast(`Existencia insuficiente de "${it.name}" en Central.`, true); return; }
+      } else {
+        const ptData = window._estadosPtData;
+        const stockRow = ptData && ptData.stockUb ? ptData.stockUb.find(s => s.ubicacion === CART.ubicacion && s.producto === it.refId) : null;
+        const available = stockRow ? (stockRow.cantidad || 0) : 0;
+        if (available < it.qty) {
+          toast(`Existencia insuficiente de "${it.name}" en esa ubicación (Hay ${available}).`, true); 
+          return; 
+        }
+      }
     }
   }
   const client = CART.clientId ? getClient(CART.clientId) : null;
@@ -207,15 +227,26 @@ async function finalizeSale() {
     vendor: CART.vendor, items: CART.items.map(it => ({ ...it })),
     subtotalUsd, discountUsd, discountNote: '', ivaUsd, totalUsd, totalBs, payments: CART.payments.map(p => ({ ...p })),
     changeUsd, creditAmount, exchangeRate: DB.config.exchangeRate, exchangeRateCop: DB.config.exchangeRateCop || 0,
-    showBs: !!CART.showBs, showCop: !!(CART.showCop && DB.config.exchangeRateCop)
+    showBs: !!CART.showBs, showCop: !!(CART.showCop && DB.config.exchangeRateCop),
+    ubicacion: CART.ubicacion
   };
   DB.sales.push(sale);
-  CART.items.forEach(it => { if (it.kind === 'p') { const p = getProduct(it.refId); if (p) p.stock = (p.stock || 0) - it.qty; } });
-  await save('sales'); await save('products');
+  if (!isEstado) {
+    CART.items.forEach(it => { if (it.kind === 'p') { const p = getProduct(it.refId); if (p) p.stock = (p.stock || 0) - it.qty; } });
+  } else if (window._estadosPtData && window._estadosPtData.stockUb) {
+    CART.items.forEach(it => { 
+      if (it.kind === 'p') {
+        const row = window._estadosPtData.stockUb.find(s => s.ubicacion === CART.ubicacion && s.producto === it.refId);
+        if (row) row.cantidad -= it.qty;
+      }
+    });
+  }
+  await save('sales'); 
+  if (!isEstado) await save('products');
   CART.lastTicket = sale;
   toast('Venta registrada ✓');
   showTicket(sale);
-  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0 };
+  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0, ubicacion: CART.ubicacion };
   render();
 }
 function showTicket(sale) {
