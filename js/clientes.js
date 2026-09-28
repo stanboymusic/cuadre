@@ -22,7 +22,8 @@ ${list.length ? `
     <td class="amt" style="color:${bal > 0 ? 'var(--clay)' : 'var(--teal)'}">${money(bal, 'USD')}</td>
     <td>
       <button class="btn btn-ghost btn-sm" onclick="openClientForm('${c.id}')">Editar</button>
-      ${bal > 0 ? `<button class="btn btn-ghost btn-sm" onclick="openAbonoForm('${c.id}')">Registrar abono</button>` : ''}
+      ${bal > 0 ? `<button class="btn btn-ghost btn-sm" onclick="openClientDeudas('${c.id}')">Deudas / Descuentos</button>
+      <button class="btn btn-ghost btn-sm" onclick="openAbonoForm('${c.id}')">Registrar abono</button>` : ''}
     </td></tr>`;
   }).join('')}</tbody></table></div>
 ` : `<div class="empty"><div class="big">☺</div>No hay clientes que coincidan.</div>`}
@@ -124,10 +125,39 @@ function showAbonoReceipt(payment, client, balBefore, balAfter) {
 
 
 
+function openClientDeudas(clientId) {
+  const c = getClient(clientId);
+  const sales = DB.sales.filter(s => s.clientId === clientId && (s.creditAmount > 0)).sort((a,b) => b.ts - a.ts);
+  const mid = openModal(`
+<div class="modal-head"><h3>Deudas de ${esc(c.name)}</h3><button class="x-close">✕</button></div>
+<div class="modal-body">
+  ${sales.length ? `
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fecha</th><th>Factura</th><th>Total final</th><th style="text-align:right">Pendiente actual</th><th></th></tr></thead>
+      <tbody>${sales.map(s => `
+        <tr>
+          <td>${fmtDate(s.date)}</td>
+          <td>#${s.ticketNo || s.id.substring(0,6)}</td>
+          <td class="amt" style="color:var(--ink-soft)">${money(s.totalUsd, 'USD')}</td>
+          <td class="amt" style="color:var(--clay); text-align:right">${money(s.creditAmount, 'USD')}</td>
+          <td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="openDiscountModal('${s.id}')">Descuento</button></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  </div>
+  ` : '<div class="empty">No hay facturas con saldo a crédito pendientes.</div>'}
+</div>
+<div class="modal-foot"><button class="btn btn-primary" onclick="closeModal(MID)">Cerrar</button></div>
+  `, true);
+  fixModal(mid);
+}
+
 // Expose to global scope for inline HTML handlers
 window.CLIENT_FILTER = CLIENT_FILTER;
 window.deleteClient = deleteClient;
 window.openAbonoForm = openAbonoForm;
+window.openClientDeudas = openClientDeudas;
 window.openClientForm = openClientForm;
 window.renderClientes = renderClientes;
 window.saveAbono = saveAbono;

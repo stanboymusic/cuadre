@@ -4,11 +4,20 @@ let CART = { items: [], clientId: '', vendor: (DB.config && DB.config.vendors &&
 
 function renderVentas(el) {
   if (!CART.vendor) CART.vendor = DB.config.vendors[0] || '';
-  const subtotalUsd = CART.items.reduce((a, it) => a + it.priceUsd * it.qty, 0);
+  const subtotalItemsUsd = CART.items.reduce((a, it) => a + it.priceUsd * it.qty, 0);
   const ivaPct = DB.config.iva || 0;
-  const ivaUsd = subtotalUsd * ivaPct / 100;
-  const totalBeforeDiscountUsd = subtotalUsd + ivaUsd;
-  const totalUsd = totalBeforeDiscountUsd;
+  const ivaUsd = subtotalItemsUsd * ivaPct / 100;
+  const subtotalUsd = subtotalItemsUsd + ivaUsd; // Subtotal antes de descuento
+
+  let discountUsd = 0;
+  if (CART.discountType === 'percent') {
+    discountUsd = Math.round(subtotalUsd * (Number(CART.discountVal) || 0) / 100 * 100) / 100;
+  } else {
+    discountUsd = Math.round((Number(CART.discountVal) || 0) * 100) / 100;
+  }
+  discountUsd = Math.min(discountUsd, subtotalUsd);
+
+  const totalUsd = Math.max(0, subtotalUsd - discountUsd);
   const totalBs = totalUsd * DB.config.exchangeRate;
   const paidUsd = CART.payments.reduce((a, p) => a + Number(p.amountUsd || 0), 0);
   const balanceUsd = totalUsd - paidUsd;
@@ -70,11 +79,22 @@ function renderVentas(el) {
 
   <div>
     <div class="card card-pad">
-      <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Subtotal</span><span class="amt">${money(subtotalUsd, 'USD')}</span></div>
-      <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--ink-soft)"><span>IVA (${ivaPct}%)</span><span class="amt">${money(ivaUsd, 'USD')}</span></div>
+      <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Productos/Servicios</span><span class="amt">${money(subtotalItemsUsd, 'USD')}</span></div>
+      ${ivaPct > 0 ? `<div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--ink-soft)"><span>IVA (${ivaPct}%)</span><span class="amt">${money(ivaUsd, 'USD')}</span></div>` : ''}
+      <div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;font-weight:600;"><span>Subtotal</span><span class="amt">${money(subtotalUsd, 'USD')}</span></div>
+
+      <div class="field" style="display:flex; align-items:center; gap:8px; margin-bottom:6px; margin-top:8px;">
+        <label style="margin:0; width:90px;">Descuento</label>
+        <select style="width:70px; padding:4px 6px;" onchange="CART.discountType=this.value; render()">
+          <option value="amount" ${CART.discountType === 'percent' ? '' : 'selected'}>$</option>
+          <option value="percent" ${CART.discountType === 'percent' ? 'selected' : ''}>%</option>
+        </select>
+        <input type="number" step="0.01" min="0" style="flex:1; padding:4px 6px;" value="${CART.discountVal || 0}" onchange="CART.discountVal=this.value; render()">
+      </div>
+      ${discountUsd > 0 ? `<div class="line" style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--clay)"><span>Monto descontado</span><span class="amt">− ${money(discountUsd, 'USD')}</span></div>` : ''}
 
       <hr style="border:none;border-top:1px solid var(--line-soft);margin:10px 0">
-      <div class="line" style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;"><span>Total</span><span class="amt">${money(totalUsd, 'USD')}</span></div>
+      <div class="line" style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;"><span>Total a cobrar</span><span class="amt">${money(totalUsd, 'USD')}</span></div>
       <div class="line" style="display:flex;justify-content:space-between;color:var(--ink-soft);font-size:12.5px;margin-top:2px;"><span>Equivalente</span><span class="amt">${money(totalBs, 'Bs')}</span></div>
       <div class="field" style="display:flex;gap:14px;margin:8px 0 0;">
         <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:400;"><input type="checkbox" ${CART.showBs ? 'checked' : ''} onchange="CART.showBs=this.checked; render()"> Incluir Bs. en la factura</label>
@@ -138,7 +158,7 @@ function cartSetItemTier(idx, tier) {
 }
 function cartSetQty(idx, val) { CART.items[idx].qty = Math.max(1, Number(val) || 1); render(); }
 function cartRemove(idx) { CART.items.splice(idx, 1); render(); }
-function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'price', showBs: false, showCop: false }; render(); }
+function cartClear() { CART = { items: [], clientId: '', vendor: DB.config.vendors[0] || '', payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0 }; render(); }
 function cartAddPaymentRow() {
   const method = document.getElementById('payMethodSel').value;
   CART.payments.push({ method, amountUsd: 0 });
@@ -149,11 +169,20 @@ function cartRemovePayment(idx) { CART.payments.splice(idx, 1); render(); }
 
 async function finalizeSale() {
   if (!CART.items.length) return;
-  const subtotalUsd = CART.items.reduce((a, it) => a + it.priceUsd * it.qty, 0);
+  const subtotalItemsUsd = CART.items.reduce((a, it) => a + it.priceUsd * it.qty, 0);
   const ivaPct = DB.config.iva || 0;
-  const ivaUsd = subtotalUsd * ivaPct / 100;
-  const totalBeforeDiscountUsd = subtotalUsd + ivaUsd;
-  const totalUsd = totalBeforeDiscountUsd;
+  const ivaUsd = subtotalItemsUsd * ivaPct / 100;
+  const subtotalUsd = subtotalItemsUsd + ivaUsd;
+
+  let discountUsd = 0;
+  if (CART.discountType === 'percent') {
+    discountUsd = Math.round(subtotalUsd * (Number(CART.discountVal) || 0) / 100 * 100) / 100;
+  } else {
+    discountUsd = Math.round((Number(CART.discountVal) || 0) * 100) / 100;
+  }
+  discountUsd = Math.min(discountUsd, subtotalUsd);
+
+  const totalUsd = Math.max(0, subtotalUsd - discountUsd);
   const totalBs = totalUsd * DB.config.exchangeRate;
   const paidUsd = CART.payments.reduce((a, p) => a + Number(p.amountUsd || 0), 0);
   let creditAmount = 0, changeUsd = 0;
@@ -176,10 +205,9 @@ async function finalizeSale() {
     id: uid('venta'), ticketNo, date: todayISO(), ts: Date.now(),
     clientId: CART.clientId || '', clientName: client ? client.name : 'Cliente ocasional',
     vendor: CART.vendor, items: CART.items.map(it => ({ ...it })),
-    subtotalUsd, ivaUsd, totalUsd, totalBs, payments: CART.payments.map(p => ({ ...p })),
+    subtotalUsd, discountUsd, discountNote: '', ivaUsd, totalUsd, totalBs, payments: CART.payments.map(p => ({ ...p })),
     changeUsd, creditAmount, exchangeRate: DB.config.exchangeRate, exchangeRateCop: DB.config.exchangeRateCop || 0,
-    showBs: !!CART.showBs, showCop: !!(CART.showCop && DB.config.exchangeRateCop),
-    totalBeforeDiscountUsd
+    showBs: !!CART.showBs, showCop: !!(CART.showCop && DB.config.exchangeRateCop)
   };
   DB.sales.push(sale);
   CART.items.forEach(it => { if (it.kind === 'p') { const p = getProduct(it.refId); if (p) p.stock = (p.stock || 0) - it.qty; } });
@@ -187,7 +215,7 @@ async function finalizeSale() {
   CART.lastTicket = sale;
   toast('Venta registrada ✓');
   showTicket(sale);
-  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false };
+  CART = { items: [], clientId: '', vendor: CART.vendor, payments: [], lastTicket: null, priceTier: 'ami', showBs: false, showCop: false, discountType: 'amount', discountVal: 0 };
   render();
 }
 function showTicket(sale) {
@@ -208,8 +236,10 @@ function showTicket(sale) {
       ${sale.items.map(it => `<div class="line"><span>${it.qty} x ${esc(it.name)}</span><span>${money(it.priceUsd * it.qty, 'USD')}</span></div>`).join('')}
     </div>
     <hr>
+    ${(sale.ivaUsd > 0 || (sale.subtotalUsd - sale.ivaUsd) !== sale.subtotalUsd) ? `<div class="line"><span>Items</span><span>${money(sale.subtotalUsd - sale.ivaUsd, 'USD')}</span></div>` : ''}
+    ${sale.ivaUsd > 0 ? `<div class="line"><span>IVA</span><span>${money(sale.ivaUsd, 'USD')}</span></div>` : ''}
     <div class="line"><span>Subtotal</span><span>${money(sale.subtotalUsd, 'USD')}</span></div>
-    <div class="line"><span>IVA</span><span>${money(sale.ivaUsd, 'USD')}</span></div>
+    ${sale.discountUsd > 0 ? `<div class="line" style="color:var(--clay)"><span>Descuento</span><span>− ${money(sale.discountUsd, 'USD')}</span></div>` : ''}
 
     <div class="line tot"><span>TOTAL</span><span>${money(sale.totalUsd, 'USD')}</span></div>
     ${sale.showBs ? `<div class="line"><span>Equiv. Bs.</span><span>${money(sale.totalBs, 'Bs')}</span></div>` : ''}

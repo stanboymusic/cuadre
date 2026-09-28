@@ -8,6 +8,7 @@
 
 let ESTADOS_TAB = 'ubicaciones';
 let _ubicaciones = []; // caché local; se recarga al navegar y tras cada mutación
+let _ubicacionesCargando = false; // bandera anti-loop
 
 const ESTADOS_VE = [
   "Amazonas","Anzoátegui","Apure","Aragua","Barinas","Bolívar",
@@ -19,13 +20,25 @@ const ESTADOS_VE = [
 // ── Carga de datos ─────────────────────────────────────────────────────────────
 
 function _reloadUbicaciones() {
+  // Evitar cargas paralelas que causen loops
+  if (_ubicacionesCargando) return Promise.resolve();
+  _ubicacionesCargando = true;
+
   return pb.collection('ubicaciones')
     .getFullList({ sort: 'tipo,nombre' })
-    .then(data => { _ubicaciones = data; })
-    .catch(err  => { console.error('estados: error cargando ubicaciones', err); });
+    .then(data => {
+      _ubicaciones = data;
+      _ubicacionesCargando = false;
+    })
+    .catch(err => {
+      _ubicacionesCargando = false;
+      // NO lanzamos el error para que el .then() externo no falle,
+      // pero sí lo logueamos una sola vez (ya no se relanza infinitamente)
+      console.warn('estados: no se pudo cargar ubicaciones:', err?.message || err);
+    });
 }
 
-// ── Renderizado principal (sincrónico; la carga async llama de vuelta) ─────────
+// ── Renderizado principal ──────────────────────────────────────────────────────
 
 function renderEstados(el) {
   const tabs = [
@@ -49,14 +62,21 @@ function renderEstados(el) {
   `;
 
   const estContent = el.querySelector('#est-content');
-  _renderEstadosContent(estContent);
 
-  // Recarga en background y re-renderiza si el usuario sigue en este módulo
-  _reloadUbicaciones().then(() => {
-    if (VIEW !== 'estados') return;
-    const c = document.getElementById('content');
-    if (c) renderEstados(c);
-  });
+  if (_ubicaciones.length) {
+    // Ya tenemos datos → renderizar inmediatamente
+    _renderEstadosContent(estContent);
+  } else {
+    // Primera carga: mostrar spinner y luego renderizar cuando lleguen los datos
+    _renderEstadosContent(estContent); // mostrará el spinner de ⏳
+    _reloadUbicaciones().then(() => {
+      if (VIEW !== 'estados') return;
+      const c = document.getElementById('content');
+      // Inyectar SOLO el contenido interno, no re-renderizar todo el módulo
+      const inner = c && c.querySelector('#est-content');
+      if (inner) _renderEstadosContent(inner);
+    });
+  }
 }
 
 function _renderEstadosContent(el) {
@@ -73,8 +93,8 @@ function _renderEstadosContent(el) {
 
 function setEstadosTab(tab) {
   ESTADOS_TAB = tab;
-  // Forzar recarga de datos al cambiar de pestaña
-  _ubicaciones = [];
+  // Solo limpiamos caché si ya no estamos cargando (para no generar un nuevo loop)
+  if (!_ubicacionesCargando) _ubicaciones = [];
   const c = document.getElementById('content');
   if (c) renderEstados(c);
 }
@@ -83,8 +103,15 @@ function setEstadosTab(tab) {
 
 function _renderUbicaciones(el) {
   if (!_ubicaciones.length) {
-    // Primera carga o datos aún vacíos: mostrar spinner mientras llega la async
-    el.innerHTML = `<div class="empty"><div style="font-size:28px;">⏳</div>Cargando ubicaciones…</div>`;
+    // Primera carga o error de permisos
+    el.innerHTML = `
+<div class="empty">
+  <div style="font-size:28px;">${_ubicacionesCargando ? '⏳' : '⚠️'}</div>
+  ${_ubicacionesCargando
+    ? 'Cargando ubicaciones…'
+    : '<b>No se pudieron cargar las ubicaciones.</b><div class="hint" style="margin-top:6px;">Verifica los permisos de la colección <code>ubicaciones</code> en PocketBase (List/View deben permitir usuarios autenticados).</div>'
+  }
+</div>`;
     return;
   }
 
@@ -217,7 +244,6 @@ function openUbicacionForm(id) {
   <button class="btn btn-primary" onclick="guardedRun(this, () => saveUbicacion('${id || ''}'))">Guardar</button>
 </div>
   `);
-  // fixModal registra el cierre de la X con el id del modal
   if (typeof fixModal === 'function') fixModal(mid);
 }
 
@@ -243,6 +269,7 @@ async function saveUbicacion(id) {
       await pb.collection('ubicaciones').create(data);
     }
     closeTopModal();
+    _ubicaciones = []; // invalidar caché
     await _reloadUbicaciones();
     toast('Ubicación guardada ✓');
     const c = document.getElementById('content');
@@ -258,12 +285,12 @@ async function deleteUbicacion(id) {
   try {
     await pb.collection('ubicaciones').delete(id);
     closeTopModal();
+    _ubicaciones = []; // invalidar caché
     await _reloadUbicaciones();
     toast('Ubicación eliminada');
     const c = document.getElementById('content');
     if (c && VIEW === 'estados') renderEstados(c);
   } catch (err) {
-    // PocketBase lanza error 400 si hay registros relacionados
     const msg = err?.data?.message || err?.message || String(err);
     toast('No se puede eliminar: tiene envíos, stock o rendiciones asociadas.', true);
     console.error('deleteUbicacion:', msg);
@@ -271,8 +298,8 @@ async function deleteUbicacion(id) {
 }
 
 // ── Exponer al scope global (requerido por el sistema de handlers inline) ──────
-window.renderEstados    = renderEstados;
-window.setEstadosTab    = setEstadosTab;
+window.renderEstados     = renderEstados;
+window.setEstadosTab     = setEstadosTab;
 window.openUbicacionForm = openUbicacionForm;
-window.saveUbicacion    = saveUbicacion;
-window.deleteUbicacion  = deleteUbicacion;
+window.saveUbicacion     = saveUbicacion;
+window.deleteUbicacion   = deleteUbicacion;
