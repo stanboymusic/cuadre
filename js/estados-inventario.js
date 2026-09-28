@@ -115,7 +115,8 @@ async function _loadInvHistorial() {
     const movs = await pb.collection('movimientos_inventario').getList(1, 50, {
       sort: '-created',
       filter: filter,
-      expand: 'producto,ubicacion'
+      expand: 'producto,ubicacion',
+      $autoCancel: false
     });
     
     if (!movs.items.length) {

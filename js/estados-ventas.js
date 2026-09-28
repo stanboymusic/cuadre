@@ -31,7 +31,7 @@ async function _loadEstadosVentas() {
   
   try {
     const filter = `ubicacion = '${_estVentLoc}' && date >= '${_estVentDesde}' && date <= '${_estVentHasta}'`;
-    const sales = await pb.collection('sales').getFullList({ filter, sort: '-ts' });
+    const sales = await pb.collection('sales').getFullList({ filter, sort: '-ts', $autoCancel: false });
     
     let totalUsd = 0;
     let totalDscto = 0;

@@ -67,6 +67,7 @@
         sort:   "-created",
         filter: filtro || "",
         expand: "destino",
+        $autoCancel: false,
       }),
 
     detalleEnvio: async (id) => {
