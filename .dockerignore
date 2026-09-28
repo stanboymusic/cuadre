@@ -1,0 +1,10 @@
+.git/
+pocketbase_0.39.10_windows_amd64/
+material visual/
+logo.png
+processed_logo.png
+node_modules/
+parche*
+*.txt
+.env*
+pb_data/

@@ -14,3 +14,16 @@ for (const col of colsCompanyId) {
     e.next();
   }, col);
 }
+
+// Bloquea que un usuario se cambie de empresa a sí mismo por la API
+onRecordUpdateRequest((e) => {
+  if (e.auth && e.record.collection().name === "users") {
+    const original = e.record.originalCopy();
+    if (original.getString("companyId") !== "" && 
+        e.record.getString("companyId") !== original.getString("companyId") && 
+        !e.auth.isSuperuser) {
+      throw new BadRequestError("No puedes cambiar de empresa");
+    }
+  }
+  e.next();
+}, "users");
