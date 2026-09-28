@@ -1,7 +1,13 @@
 // Migración: Parche 3 — Multiempresa para Estados.
 // PocketBase v0.39.10+
-// CORRECCIÓN: campo companyId se guarda PRIMERO, reglas DESPUÉS (dos pasadas).
-// Idempotente: si el campo ya existe no lo duplica; si las reglas ya están no falla.
+//
+// ESTRATEGIA SEGURA:
+// 1. Solo agrega el campo companyId a las colecciones de Estados
+// 2. NO establece reglas que referencien @request.auth.companyId
+//    (esas reglas requieren que el campo companyId esté en el schema de users,
+//     lo cual se maneja en la migración 1790000100 y el hook companyid_estados.pb.js)
+// 3. El filtrado por empresa lo aplica el hook companyid_estados.pb.js en cada request
+// 4. Idempotente: no falla si el campo ya existe
 
 migrate((app) => {
   const collections = [
@@ -10,23 +16,23 @@ migrate((app) => {
   ];
 
   // ── PASO 1: Vaciar datos de prueba ─────────────────────────────────────────
-  // Solo borra si hay registros (prod: no había datos reales de Estados)
   for (const name of collections) {
     try {
       const records = app.findRecordsByFilter(name, "id != ''", "", 0, 0);
       for (const r of records) {
         try { app.delete(r); } catch (_) {}
       }
+      console.log("[parche3] vaciada: " + name);
     } catch (err) {
-      console.log("Aviso vaciando " + name + ": " + err);
+      console.log("[parche3] aviso vaciando " + name + ": " + err);
     }
   }
 
-  // ── PASO 2: Añadir campo companyId y guardar (SIN reglas todavía) ──────────
+  // ── PASO 2: Añadir campo companyId (sin tocar las reglas) ──────────────────
   for (const name of collections) {
     const col = app.findCollectionByNameOrId(name);
 
-    // Comprobar si el campo ya existe (idempotente)
+    // Idempotente: no duplicar si ya existe
     let tieneField = false;
     try {
       col.fields.getByName("companyId");
@@ -40,9 +46,8 @@ migrate((app) => {
         "id":       "text_companyId_" + name,
         "name":     "companyId",
         "type":     "text",
-        "required": false,   // false en este save; true se aplica después de que las reglas pasen
+        "required": false,
       }));
-      // Guardar SOLO el campo — todavía sin reglas nuevas
       app.save(col);
       console.log("[parche3] campo companyId agregado a: " + name);
     } else {
@@ -50,30 +55,11 @@ migrate((app) => {
     }
   }
 
-  // ── PASO 3: Ahora aplicar las reglas (el campo ya existe en DB) ───────────
-  const rule = "@request.auth.companyId = companyId";
-
-  for (const name of collections) {
-    const col = app.findCollectionByNameOrId(name);  // releer del disco
-
-    if (col.listRule   !== null) col.listRule   = rule;
-    if (col.viewRule   !== null) col.viewRule   = rule;
-
-    if (name === "envio_items") {
-      const ruleItem = "@request.auth.companyId = companyId && envio.estado = 'preparando'";
-      col.createRule = ruleItem;
-      col.updateRule = ruleItem;
-      col.deleteRule = ruleItem;
-    } else {
-      if (col.createRule !== null && col.createRule !== "") col.createRule = rule;
-      if (col.updateRule !== null)                          col.updateRule = rule;
-      if (col.deleteRule !== null)                          col.deleteRule = rule;
-    }
-
-    app.save(col);
-    console.log("[parche3] reglas aplicadas a: " + name);
-  }
+  // NOTA: Las reglas de acceso multiempresa (@request.auth.companyId = companyId)
+  // se aplican vía el hook companyid_estados.pb.js que corre en tiempo de request.
+  // No se establecen aquí para evitar errores si el schema de users en producción
+  // no tiene companyId registrado formalmente.
 
 }, (app) => {
-  // DOWN: no necesario, no se puede revertir el borrado de datos de prueba
+  // DOWN: no revertible (datos de prueba ya borrados)
 })
