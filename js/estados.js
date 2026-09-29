@@ -260,6 +260,7 @@ async function saveUbicacion(id) {
     telefono:     document.getElementById('ub_telefono').value.trim(),
     comision_pct: Number(document.getElementById('ub_comision').value) || 0,
     activa:       document.getElementById('ub_activa').checked,
+    companyId:    pb.authStore.record?.companyId || pb.authStore.model?.companyId || ''
   };
 
   try {
