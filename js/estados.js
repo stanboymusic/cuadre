@@ -28,6 +28,7 @@ function _reloadUbicaciones() {
     .getFullList({ sort: 'tipo,nombre' })
     .then(data => {
       _ubicaciones = data;
+      window._ubicaciones = data; // <--- Exportar globalmente
       _ubicacionesCargando = false;
     })
     .catch(err => {
@@ -271,6 +272,7 @@ async function saveUbicacion(id) {
     }
     closeTopModal();
     _ubicaciones = []; // invalidar caché
+    window._ubicaciones = [];
     await _reloadUbicaciones();
     toast('Ubicación guardada ✓');
     const c = document.getElementById('content');
@@ -287,6 +289,7 @@ async function deleteUbicacion(id) {
     await pb.collection('ubicaciones').delete(id);
     closeTopModal();
     _ubicaciones = []; // invalidar caché
+    window._ubicaciones = [];
     await _reloadUbicaciones();
     toast('Ubicación eliminada');
     const c = document.getElementById('content');
