@@ -46,7 +46,7 @@ const NAV = [
 ];
 const LABELS = Object.fromEntries(NAV.flatMap(g => g.items).map(i => [i.id, i.label]));
 
-function navigate(view) { VIEW = view; render(); window.scrollTo(0, 0); }
+function navigate(view) { if (typeof CIERRE_DATE !== 'undefined') CIERRE_DATE = null; VIEW = view; render(); window.scrollTo(0, 0); }
 
 function toggleSidebar(force) {
   const sb = document.querySelector('.sidebar');
