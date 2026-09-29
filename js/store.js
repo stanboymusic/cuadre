@@ -121,13 +121,13 @@ async function loadDB() {
   const results = await Promise.all(STORE_KEYS.map(async k => {
     try {
       if (k === 'config') {
-        const records = await pb.collection(k).getFullList();
+        const records = await pb.collection(k).getFullList({ $autoCancel: false });
         if (records.length === 0) return [k, null];
         const parsed = parseRecord(k, records[0]);
         parsed.exchangeRateCop = parsed.cop || 0;
         return [k, parsed];
       }
-      const records = await pb.collection(k).getFullList();
+      const records = await pb.collection(k).getFullList({ $autoCancel: false });
       return [k, records.length > 0 ? records.map(r => parseRecord(k, r)) : []];
     }
     catch (e) { console.error(e); return [k, null]; }
@@ -140,7 +140,7 @@ async function save(key) {
   try {
     const companyId = (pb.authStore.record && pb.authStore.record.companyId) || '';
     if (key === 'config') {
-      const existing = await pb.collection(key).getFullList();
+      const existing = await pb.collection(key).getFullList({ $autoCancel: false });
       const data = serializeRecord(key, DB.config);
       data.cop = DB.config.exchangeRateCop || 0;
       delete data.exchangeRateCop;
@@ -153,7 +153,7 @@ async function save(key) {
       return;
     }
 
-    const pbRecords = await pb.collection(key).getFullList();
+    const pbRecords = await pb.collection(key).getFullList({ $autoCancel: false });
     const pbMap = new Map(pbRecords.map(r => [r.id, r]));
 
     const ops = [];
@@ -211,7 +211,7 @@ async function syncAllWithCompany() {
 async function reloadKey(key) {
   try {
     if (key === 'config') {
-      const records = await pb.collection(key).getFullList();
+      const records = await pb.collection(key).getFullList({ $autoCancel: false });
       if (records.length > 0) {
         const parsed = parseRecord(key, records[0]);
         parsed.exchangeRateCop = parsed.cop || 0;
@@ -219,7 +219,7 @@ async function reloadKey(key) {
       }
       return;
     }
-    const records = await pb.collection(key).getFullList();
+    const records = await pb.collection(key).getFullList({ $autoCancel: false });
     DB[key] = records.length > 0 ? records.map(r => parseRecord(key, r)) : [];
   } catch (e) {
     console.error('reloadKey(' + key + '):', e);
