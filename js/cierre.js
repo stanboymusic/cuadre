@@ -11,6 +11,10 @@ function renderCierre(el) {
   const expensesToday = expensesOnDate(iso);
   const ingresosPorMetodo = {}; methods.forEach(m => ingresosPorMetodo[m] = 0);
   salesToday.forEach(s => s.payments.forEach(p => { if (ingresosPorMetodo[p.method] != null) ingresosPorMetodo[p.method] += p.amountUsd; }));
+  
+  const paymentsToday = DB.receivablePayments.filter(p => p.date === iso);
+  paymentsToday.forEach(p => { if (ingresosPorMetodo[p.method] != null) ingresosPorMetodo[p.method] += p.amountUsd; });
+
   const egresosPorMetodo = {}; methods.forEach(m => egresosPorMetodo[m] = 0);
   expensesToday.forEach(e => { if (egresosPorMetodo[e.method] != null) egresosPorMetodo[e.method] += e.amountUsd; });
 
